@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+  background: #09090b;
+}
+
+/* Green wipe: expands from the CTA's position into the planning screen. */
+@keyframes green-wipe {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+  to   { transform: translate(-50%, -50%) scale(130); opacity: 1; }
+}
+.green-wipe {
+  animation: green-wipe var(--wipe-ms, 520ms) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ...and lands on /planning as green fading away. */
+@keyframes green-settle {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.green-settle {
+  animation: green-settle var(--wipe-ms, 520ms) ease-out forwards;
+}
+
+/* Graph nodes grow outward from the green origin (delay set per node). */
+@keyframes node-grow {
+  from { opacity: 0; transform: scale(0.86) translateX(-14px); }
+  to   { opacity: 1; transform: none; }
+}
+.node-grow {
+  animation: node-grow 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Edges can't take a per-edge delay without a custom edge type, so the whole
+   edge layer fades in behind the nodes. */
+@keyframes edges-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.react-flow__edges {
+  animation: edges-in 700ms ease-out 260ms backwards;
+}
+
+/* ------------------------------------------------------------------ *
+ * React Flow dark chrome. Every colour comes from THEME.graph via
+ * shared/theme.js — see constants.js to change any of them.
+ * ------------------------------------------------------------------ */
+
+.react-flow__controls {
+  background: var(--rf-control-bg);
+  border: 1px solid var(--rf-control-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+.react-flow__controls-button {
+  background: var(--rf-control-bg);
+  border: none;
+  border-bottom: 1px solid var(--rf-control-border);
+  color: var(--rf-control-icon);
+  width: 28px;
+  height: 28px;
+  transition: background-color 120ms ease;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--rf-control-hover-bg);
+}
+
+.react-flow__controls-button:active,
+.react-flow__controls-button:focus-visible {
+  background: var(--rf-control-active-bg);
+  outline: none;
+}
+
+.react-flow__controls-button:disabled {
+  opacity: 0.4;
+}
+
+/* The icons are inline SVG with a hardcoded dark fill — override it. */
+.react-flow__controls-button svg,
+.react-flow__controls-button svg path {
+  fill: var(--rf-control-icon);
+}
+
+.react-flow__minimap {
+  background: var(--rf-minimap-bg);
+  border: 1px solid var(--rf-control-border);
+  border-radius: 0.5rem;
+}
+
+.react-flow__minimap-mask {
+  fill: var(--rf-minimap-mask);
+}
+
+.react-flow__minimap-node {
+  fill: var(--rf-minimap-node);
+  stroke: none;
+}
+
+.react-flow__background-pattern {
+  color: var(--rf-background-dots);
+}
+
+.react-flow__attribution {
+  background: transparent;
+}
+
+.react-flow__attribution a {
+  color: var(--rf-attribution);
+}
+
+/* A node whose real data hasn't streamed in yet. */
+@keyframes pending-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.9; }
+}
+.node-pending {
+  animation: pending-pulse 1.4s ease-in-out infinite;
+  border-style: dashed;
+}

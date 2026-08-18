@@ -1,0 +1,14 @@
+# Local Qdrant only — Mongo is assumed to be running on the host already.
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: travel-ai-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST — this is what QDRANT_URL points at
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  qdrant_storage:
