@@ -10,7 +10,13 @@ import { computeBudget } from '../budget/budget.service.js';
 import { buildGraph } from '../graph/graph.builder.js';
 import { newId, toAccommodation, toActivity, rehop } from './planner.assemble.js';
 
-const keep = (list) => (list ?? []).slice(0, LIMITS.storedAlternatives);
+// Provider results have no id of their own; stamp one so the stored plan
+// validates and Semi-mode dropdowns can address each option.
+const keep = (list, parentId) =>
+  (list ?? []).slice(0, LIMITS.storedAlternatives).map(({ alternatives, ...rest }, i) => ({
+    ...rest,
+    id: rest.id ?? `${parentId}-alt-${i + 1}`,
+  }));
 
 const findDayOf = (plan, activityId) => {
   for (const day of plan.days) {
@@ -51,11 +57,9 @@ async function replace_transport_segment(plan, _input, { segmentId, alternativeI
   }
 
   // Keep the id so graph edges and any references stay valid.
-  plan.segments[i] = { ...picked, id: old.id, alternatives: keep(alternatives).map(stripAlts) };
+  plan.segments[i] = { ...picked, id: old.id, alternatives: keep(alternatives, old.id) };
   return plan;
 }
-
-const stripAlts = ({ alternatives, ...rest }) => rest;
 
 async function replace_accommodation(plan, input, { stayId, alternativeIndex = null, constraints = {} }) {
   const i = plan.stays.findIndex((s) => s.id === stayId);
@@ -79,7 +83,7 @@ async function replace_accommodation(plan, input, { stayId, alternativeIndex = n
 
   plan.stays[i] = {
     ...toAccommodation(candidate, { id: old.id, destination: old.destination, nights: old.nights }),
-    alternatives: keep(alternatives).map(stripAlts),
+    alternatives: keep(alternatives, old.id),
   };
   return plan;
 }

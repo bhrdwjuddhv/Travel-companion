@@ -1,7 +1,8 @@
-import { PROVIDERS } from '../../constants.js';
+import { PROVIDERS, MODE_BY_DISTANCE } from '../../constants.js';
 import { logger } from '../../shared/logger.js';
 import * as railradar from './railradar.provider.js';
 import * as googleEstimator from './googleEstimator.provider.js';
+import { computeRoute } from './googleEstimator.provider.js';
 
 const log = logger('transport');
 
@@ -16,15 +17,37 @@ const MODES_TO_TRY = { any: ['train', 'bus', 'car'], train: ['train'], bus: ['bu
 const norm = (v, lo, hi) => (hi === lo ? 0 : (v - lo) / (hi - lo));
 
 /**
+ * No stated preference: let the distance decide which providers are even worth
+ * calling. Flying 200km or driving 1,500km are both answers nobody wants, and
+ * skipping the pointless providers cuts the request count too.
+ *
+ * The route lookup is cached, so the providers that follow reuse it for free.
+ */
+async function modesByDistance(from, to) {
+  try {
+    const { distanceKm } = await computeRoute(from, to, 'car');
+    const modes =
+      distanceKm <= MODE_BY_DISTANCE.shortMaxKm ? ['car', 'bus', 'train']
+      : distanceKm <= MODE_BY_DISTANCE.mediumMaxKm ? ['train', 'bus']
+      : ['train', 'flight'];
+    log.info(`${from}->${to} is ${distanceKm}km, trying ${modes.join('/')}`);
+    return modes;
+  } catch (e) {
+    log.warn(`distance unknown for ${from}->${to}, trying everything: ${e.message}`);
+    return MODES_TO_TRY.any;
+  }
+}
+
+/**
  * Gathers options across modes *in parallel* and ranks them on price, time and
  * the user's stated preference. A provider that fails or times out is skipped,
  * not fatal (§14).
  */
-export async function getTransportOptions({ from, to, mode = 'any', preference = 'any', maxFare = null }) {
-  const modes = MODES_TO_TRY[mode] ?? MODES_TO_TRY.any;
+export async function getTransportOptions({ from, to, mode = 'any', preference = 'any', maxFare = null, date = null, classes = undefined }) {
+  const modes = mode === 'any' || !MODES_TO_TRY[mode] ? await modesByDistance(from, to) : MODES_TO_TRY[mode];
 
   const settled = await Promise.allSettled(
-    modes.map((m) => REGISTRY[PROVIDERS[m]].getOptions({ from, to, mode: m, maxFare }))
+    modes.map((m) => REGISTRY[PROVIDERS[m]].getOptions({ from, to, mode: m, maxFare, date, classes }))
   );
 
   const failures = [];
@@ -38,9 +61,12 @@ export async function getTransportOptions({ from, to, mode = 'any', preference =
   let options = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
 
   if (!options.length) {
-    // Last resort: an explicitly-marked estimate beats no plan at all.
-    log.warn(`no provider returned options for ${from}->${to}, falling back to estimate`);
-    options = await googleEstimator.getOptions({ from, to, mode: mode === 'any' ? 'bus' : mode });
+    // Last resort: an explicitly-marked estimate beats no plan at all. Never
+    // fall back *as a train* — the estimator has no train data, and a made-up
+    // train is worse than an honest bus estimate.
+    const fallbackMode = mode === 'any' || mode === 'train' ? 'bus' : mode;
+    log.warn(`no ${mode} for ${from}->${to}, falling back to a ${fallbackMode} estimate`);
+    options = await googleEstimator.getOptions({ from, to, mode: fallbackMode });
   }
 
   const fares = options.map((o) => o.fare);

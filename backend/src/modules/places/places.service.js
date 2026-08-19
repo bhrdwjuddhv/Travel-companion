@@ -2,6 +2,7 @@ import { ENV, STAY_RATES, TTL_HOURS, TIMEOUTS_MS } from '../../constants.js';
 import { fetchJson } from '../../shared/fetchJson.js';
 import { cached } from '../../shared/cache.js';
 import { logger } from '../../shared/logger.js';
+import { normalizePlaceName } from '../../shared/placeName.js';
 
 const log = logger('places');
 const SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
@@ -36,7 +37,7 @@ function searchText(textQuery, { limit = 10, ttlHours }) {
 // Ranking signal: quality weighted by how much evidence backs it.
 const score = (p) => (p.rating ?? 0) * Math.log10((p.userRatingCount ?? 0) + 10);
 
-export async function searchStays(destination, { preference = 'any', maxPricePerNight = null, limit = 6 } = {}) {
+export async function searchStays(destination, { preference = 'any', maxPricePerNight = null, preferPriceUpTo = null, limit = 6 } = {}) {
   const kind = preference === 'any' ? 'hotels' : `${preference}s`;
   const places = await searchText(`${kind} to stay in ${destination}`, { limit: limit * 2, ttlHours: TTL_HOURS.stay });
   const timestamp = new Date().toISOString();
@@ -44,7 +45,7 @@ export async function searchStays(destination, { preference = 'any', maxPricePer
   return places
     .map((p) => ({
       placeId: p.id,
-      name: p.displayName?.text ?? 'Unknown',
+      name: normalizePlaceName(p.displayName?.text) || 'Unknown',
       type: p.primaryTypeDisplayName?.text ?? preference,
       address: p.formattedAddress ?? null,
       rating: p.rating ?? null,
@@ -57,8 +58,16 @@ export async function searchStays(destination, { preference = 'any', maxPricePer
       source: 'google_places',
       timestamp,
     }))
+    // A numeric budget is a hard cap; a tier only *prefers* its band, so a
+    // budget tier in an expensive city still returns somewhere to sleep.
     .filter((s) => maxPricePerNight == null || s.pricePerNight <= maxPricePerNight)
-    .sort((a, b) => score(b) - score(a))
+    .sort((a, b) => {
+      if (preferPriceUpTo != null) {
+        const inBand = (s) => (s.pricePerNight <= preferPriceUpTo ? 0 : 1);
+        if (inBand(a) !== inBand(b)) return inBand(a) - inBand(b);
+      }
+      return score(b) - score(a);
+    })
     .slice(0, limit);
 }
 
@@ -71,7 +80,7 @@ export async function searchAttractions(destination, { interests = [], limit = 1
 
   return places.map((p) => ({
     placeId: p.id,
-    name: p.displayName?.text ?? 'Unknown',
+    name: normalizePlaceName(p.displayName?.text) || 'Unknown',
     category: p.primaryTypeDisplayName?.text ?? 'attraction',
     address: p.formattedAddress ?? null,
     rating: p.rating ?? null,

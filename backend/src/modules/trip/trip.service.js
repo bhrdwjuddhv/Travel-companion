@@ -1,3 +1,4 @@
+import { isValidObjectId } from 'mongoose';
 import { Trip } from './trip.model.js';
 import { TripVersion } from './tripVersion.model.js';
 import { LIMITS } from '../../constants.js';
@@ -23,6 +24,7 @@ export async function createTrip({ ownerKey, input, plan }) {
  * so nothing is ever half-applied.
  */
 export async function appendVersion({ tripId, ownerKey, expectedVersion, plan }) {
+  assertId(tripId);
   const trip = await Trip.findOneAndUpdate(
     { _id: tripId, ownerKey, currentVersion: expectedVersion },
     { $inc: { currentVersion: 1 } },
@@ -43,7 +45,26 @@ export async function appendVersion({ tripId, ownerKey, expectedVersion, plan })
   return { tripId: String(trip._id), versionNumber: trip.currentVersion };
 }
 
+/** Dragged positions win; everything else keeps the deterministic layout. */
+const applyLayout = (plan, layout) =>
+  !plan || !layout || !Object.keys(layout).length
+    ? plan
+    : {
+        ...plan,
+        graph: {
+          ...plan.graph,
+          nodes: plan.graph.nodes.map((n) => (layout[n.id] ? { ...n, position: layout[n.id] } : n)),
+        },
+      };
+
+// A malformed id is a missing trip, not a server error — without this Mongoose
+// throws a CastError and we'd answer 500 with its internals.
+const assertId = (tripId) => {
+  if (!isValidObjectId(tripId)) throw notFound('Trip not found');
+};
+
 export async function getTrip(tripId, ownerKey) {
+  assertId(tripId);
   const trip = await Trip.findOne({ _id: tripId, ownerKey }).lean();
   if (!trip) throw notFound('Trip not found');
   const version = await TripVersion.findOne({ tripId, versionNumber: trip.currentVersion }).lean();
@@ -51,9 +72,17 @@ export async function getTrip(tripId, ownerKey) {
     tripId: String(trip._id),
     input: trip.input,
     versionNumber: trip.currentVersion,
-    plan: version?.plan ?? null,
+    plan: applyLayout(version?.plan ?? null, trip.layout),
+    layout: trip.layout ?? {},
     createdAt: trip.createdAt,
   };
+}
+
+export async function saveLayout(tripId, ownerKey, layout) {
+  assertId(tripId);
+  const res = await Trip.updateOne({ _id: tripId, ownerKey }, { $set: { layout } });
+  if (!res.matchedCount) throw notFound('Trip not found');
+  return { ok: true, moved: Object.keys(layout).length };
 }
 
 export async function listTrips(ownerKey) {

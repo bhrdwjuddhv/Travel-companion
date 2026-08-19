@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { CalendarDays, Share2, Workflow } from 'lucide-react';
 import TripGraph from '../graph/TripGraph';
 import BudgetPanel from '../budget/BudgetPanel';
+import CalendarView from '../calendar/CalendarView';
+import EditContextChip from '../chat/EditContextChip';
 import { api } from '../../shared/api';
 import { THEME } from '../../constants';
+import { useIsMobile } from '../../shared/useIsMobile';
+
+const LAYOUT_SAVE_DELAY_MS = 600;
 
 export default function TripPage() {
   const { tripId } = useParams();
@@ -13,13 +19,33 @@ export default function TripPage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   const [copied, setCopied] = useState(false);
+  // The node canvas is unusable on a phone, so Calendar opens first there.
+  // Still a toggle, not a lockout.
+  const isMobile = useIsMobile();
+  const [view, setView] = useState(isMobile ? 'calendar' : 'graph');
+  const [editContext, setEditContext] = useState(null);
+
+  const layoutRef = useRef({});
+  const saveTimer = useRef(null);
 
   useEffect(() => {
-    api(`/api/trips/${tripId}`).then(setTrip, (e) => setError(e.message));
+    api(`/api/trips/${tripId}`).then((t) => {
+      layoutRef.current = t.layout ?? {};
+      setTrip(t);
+    }, (e) => setError(e.message));
   }, [tripId]);
 
-  // No useCallback/useMemo here on purpose — the React Compiler memoizes these,
-  // and hand-rolling it made the compiler bail out entirely.
+  // Dragging fires constantly; only the last position in a burst is worth a write.
+  const onLayoutChange = (nodeId, position) => {
+    layoutRef.current = { ...layoutRef.current, [nodeId]: position };
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      api(`/api/trips/${tripId}/layout`, { method: 'PUT', body: { layout: layoutRef.current } }).catch((e) =>
+        setNote(`Could not save layout: ${e.message}`)
+      );
+    }, LAYOUT_SAVE_DELAY_MS);
+  };
+
   const mutate = async (tool, args) => {
     setBusy(true);
     setNote(null);
@@ -42,7 +68,7 @@ export default function TripPage() {
     }
   };
 
-  // Semi mode is the only one with on-diagram controls.
+  // Semi mode is the only one with on-diagram dropdowns.
   const semi =
     trip?.input?.planningMode === 'semi'
       ? {
@@ -69,27 +95,35 @@ export default function TripPage() {
   };
 
   return (
-    <main className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
-      <header className="flex items-center justify-between gap-4 border-b border-neutral-800 px-5 py-3">
+    <main className="flex h-[100dvh] flex-col bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-neutral-200 px-4 py-2.5 sm:px-5 sm:py-3 dark:border-neutral-800">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-medium">{route}</h1>
           <p className="text-xs text-neutral-500">
-            {input.durationDays} days · {input.travellerCount} traveller{input.travellerCount > 1 ? 's' : ''} · v
-            {trip.versionNumber} · {input.planningMode}
+            {input.startDate ? `${input.startDate} → ${input.endDate}` : `${input.durationDays} days`} ·{' '}
+            {input.travellerCount} traveller{input.travellerCount > 1 ? 's' : ''} · v{trip.versionNumber} ·{' '}
+            {input.planningMode}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-sm">
-          {busy && (
-            <span className="text-xs" style={{ color: THEME.originGreen }}>
-              updating…
-            </span>
-          )}
-          <button onClick={share} className="rounded-full border border-neutral-700 px-4 py-1.5 hover:bg-neutral-900">
-            {copied ? 'Link copied' : 'Share'}
+
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 text-sm sm:w-auto">
+          {busy && <span className="text-xs" style={{ color: THEME.originGreen }}>updating…</span>}
+
+          <div className="flex overflow-hidden rounded-full border border-neutral-300 dark:border-neutral-700">
+            <ViewTab active={view === 'graph'} onClick={() => setView('graph')} Icon={Workflow} label="Graph" />
+            <ViewTab active={view === 'calendar'} onClick={() => setView('calendar')} Icon={CalendarDays} label="Calendar" />
+          </div>
+
+          <button
+            onClick={share}
+            className="flex min-h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            <Share2 size={13} />
+            {copied ? 'Copied' : 'Share'}
           </button>
           <button
             onClick={() => navigate('/planning')}
-            className="rounded-full px-4 py-1.5 font-medium text-neutral-950"
+            className="min-h-9 rounded-full px-4 py-1.5 font-medium text-neutral-950"
             style={{ background: THEME.originGreen }}
           >
             New trip
@@ -97,11 +131,16 @@ export default function TripPage() {
         </div>
       </header>
 
-      {note && <p className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-xs text-amber-300">{note}</p>}
+      {note && <p className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-xs text-amber-600 dark:text-amber-300">{note}</p>}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="min-h-0 flex-1">
-          <TripGraph plan={plan} semi={semi} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {view === 'graph' ? (
+            <TripGraph plan={plan} semi={semi} onEdit={setEditContext} onLayoutChange={onLayoutChange} />
+          ) : (
+            <CalendarView trip={trip} />
+          )}
+          <EditContextChip context={editContext} onClose={() => setEditContext(null)} />
         </div>
         <BudgetPanel budget={plan.budget} verdict={trip.budgetVerdict} />
       </div>
@@ -109,6 +148,20 @@ export default function TripPage() {
   );
 }
 
+const ViewTab = ({ active, onClick, Icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`flex min-h-9 items-center gap-1.5 px-3.5 py-1.5 text-xs transition ${
+      active ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+    }`}
+  >
+    <Icon size={13} />
+    {label}
+  </button>
+);
+
 const Message = ({ children }) => (
-  <main className="grid min-h-screen place-items-center bg-neutral-950 p-6 text-sm text-neutral-400">{children}</main>
+  <main className="grid min-h-screen place-items-center bg-white p-6 text-sm text-neutral-500 dark:bg-neutral-950">
+    {children}
+  </main>
 );

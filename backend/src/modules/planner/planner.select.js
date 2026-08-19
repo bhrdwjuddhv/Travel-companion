@@ -27,7 +27,8 @@ Rules:
 - One option per leg, one stay per destination, one entry per day number.
 - 2 to 4 activities per day. Never repeat an activity across days.
 - Group each day's activities so they make sense together; put the marquee sight early in the stay.
-- Respect the budget: if the trip has a cap, prefer cheaper legs and stays over expensive ones.
+- Match the stated style: a budget trip takes the cheap bed and the free sights, a premium one does not.
+- A hard cap overrides the style: when one is given, prefer cheaper legs and stays until it fits.
 - Never invent a fare, a distance or a total. You are picking ids, nothing else.`;
 
 const timeout = (ms, what) =>
@@ -47,12 +48,13 @@ const brief = {
   attraction: (a, id) => `${id}: ${a.name} [${a.category}] ${a.rating ?? '?'}★`,
 };
 
-function buildPrompt({ input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments }) {
+function buildPrompt({ input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments, tier }) {
   const lines = [
     `Trip: ${input.origin} -> ${[input.primaryDestination, ...input.additionalDestinations].join(' -> ')}`,
     `${input.durationDays} days, ${input.direction}, ${input.travellerCount} traveller(s)`,
     input.interests.length ? `Interests: ${input.interests.join(', ')}` : null,
-    input.budgetTotal ? `Total budget: INR ${input.budgetTotal}` : null,
+    tier ? `Style: ${tier.label} — ${tier.blurb} Aim for about ${tier.paidActivitiesPerDay} paid sight(s) per day.` : null,
+    input.budgetTotal ? `HARD CAP on the whole trip: INR ${input.budgetTotal}. Prefer the cheaper options.` : null,
     input.budgetPerPerson ? `Budget per person: INR ${input.budgetPerPerson}` : null,
     '',
     'TRANSPORT OPTIONS',

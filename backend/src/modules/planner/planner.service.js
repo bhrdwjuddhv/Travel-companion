@@ -3,7 +3,7 @@ import { HttpError, notFound } from '../../shared/errors.js';
 import { TripPlan } from '../../schemas/trip.schema.js';
 import { parseOrThrow } from '../../shared/validate.js';
 import { logger, now, since } from '../../shared/logger.js';
-import { computeBudget, budgetVerdict } from '../budget/budget.service.js';
+import { computeBudget, budgetVerdict, tierOf } from '../budget/budget.service.js';
 import { buildGraph, segmentLabel } from '../graph/graph.builder.js';
 import { getTransportOptions, localHop } from '../transport/transport.service.js';
 import { resolveLocation } from '../places/geocode.service.js';
@@ -11,9 +11,11 @@ import { searchStays, searchAttractions } from '../places/places.service.js';
 import { assertGenerationQuota, createTrip, appendVersion } from '../trip/trip.service.js';
 import { buildSkeleton } from './planner.skeleton.js';
 import { selectPlan, researchHiddenGems } from './planner.select.js';
+import { freshGemsFor, ingestGems } from '../rag/rag.service.js';
+import { placeDeduper, normalizePlaceName } from '../../shared/placeName.js';
 import {
-  newId, toSegment, toAccommodation, toActivity, rehop, splitNights, buildLegs,
-  destinationsOf, dayAssignments, segId, stayId, dayIdOf, actIdOf,
+  newId, toSegment, toAccommodation, toActivity, rehop, buildLegs, nightsPerDestination,
+  destinationsOf, dayAssignments, legDates, segId, stayId, dayIdOf, actIdOf,
 } from './planner.assemble.js';
 
 const log = logger('planner');
@@ -24,7 +26,16 @@ const withComputed = (draft, input) => ({
   graph: buildGraph(draft, input),
 });
 
-const keep = (list) => list.slice(0, LIMITS.storedAlternatives).map(({ alternatives, ...rest }) => rest);
+/**
+ * Trims a shortlist for storage. Provider results carry no `id` — the provider
+ * interface returns everything *but* the id — so stamp one here, or the plan
+ * fails validation on the way to the database.
+ */
+const keep = (list, parentId) =>
+  list.slice(0, LIMITS.storedAlternatives).map(({ alternatives, ...rest }, i) => ({
+    ...rest,
+    id: rest.id ?? `${parentId}-alt-${i + 1}`,
+  }));
 
 const source = (id, url, sourceType, entityRef) => ({
   id,
@@ -58,7 +69,10 @@ export async function generateTrip({ input, ownerKey, emit }) {
   const legs = buildLegs(input);
   const destinations = destinationsOf(input);
   const assignments = dayAssignments(input);
-  const nightsPlan = splitNights(input.durationDays, destinations);
+  const nightsPlan = nightsPerDestination(input);
+  const dates = legDates(input);
+  const tier = tierOf(input);
+  log.info(`budget tier: ${tier.label}${input.budgetTotal ? ` (hard cap ₹${input.budgetTotal})` : ''}`);
 
   // ---- 1. Skeleton first, so the graph renders before any network call ----
   const skeletonPlan = withComputed(buildSkeleton(input), input);
@@ -81,12 +95,14 @@ export async function generateTrip({ input, ownerKey, emit }) {
       to: leg.to,
       mode: input.preferredTransport,
       preference: input.preferredTransport,
+      date: dates[i],
+      classes: tier.trainClasses,
     }).then(
       ({ pick, alternatives }) => {
         transportByLeg[i] = [pick, ...alternatives];
         // Provisional best pick lands on the edge immediately; the selection
         // step may revise it in the full snapshot later.
-        const segment = { ...toSegment(pick, segId(i)), alternatives: keep(alternatives) };
+        const segment = { ...toSegment(pick, segId(i), dates[i]), alternatives: keep(alternatives, segId(i)) };
         send('patch', { target: edgeOf(segId(i)), status: 'ready', label: segmentLabel(segment), data: segment });
       },
       (e) => {
@@ -97,7 +113,7 @@ export async function generateTrip({ input, ownerKey, emit }) {
   );
 
   const stayJobs = nightsPlan.map(({ destination, nights }, i) =>
-    searchStays(destination, { preference: input.accommodationPreference }).then(
+    searchStays(destination, { preference: input.accommodationPreference, preferPriceUpTo: tier.maxPricePerNight }).then(
       (found) => {
         staysByDest[destination] = found;
         if (!found.length) return;
@@ -132,7 +148,7 @@ export async function generateTrip({ input, ownerKey, emit }) {
 
   // The slowest thing in the pipeline runs alongside all of it, not after.
   log.info('▶ hidden gems (background)');
-  const gemsJob = researchHiddenGems({ destinations, interests: input.interests }).catch((e) => {
+  const gemsJob = gatherHiddenGems(destinations, input.interests).catch((e) => {
     log.warn(`hidden gems unavailable: ${e.message}`);
     return [];
   });
@@ -146,12 +162,12 @@ export async function generateTrip({ input, ownerKey, emit }) {
 
   // ---- 3. One structured LLM call: pick options, sequence days ----
   const select = log.start('select (LLM)');
-  const selection = await selectPlan({ input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments: assignments });
+  const selection = await selectPlan({ input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments: assignments, tier });
   select.done();
 
   // ---- 4. Assemble deterministically from the model's choices ----
   const assemble = log.start('assemble');
-  const draft = await assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection });
+  const draft = await assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection, dates });
   assemble.done();
 
   const budgetStage = log.start('budget');
@@ -176,8 +192,28 @@ export async function generateTrip({ input, ownerKey, emit }) {
   return saved;
 }
 
+/**
+ * Qdrant first, web search only for what's missing or stale. A city researched
+ * last week costs nothing to reuse, and web search is the slow tail here.
+ */
+async function gatherHiddenGems(destinations, interests) {
+  const known = await Promise.all(destinations.map((city) => freshGemsFor(city)));
+  const reused = known.filter(Boolean).flat();
+  const missing = destinations.filter((_, i) => !known[i]);
+
+  if (!missing.length) {
+    log.info(`hidden gems: reused ${reused.length} from cache, no research needed`);
+    return reused;
+  }
+
+  const found = await researchHiddenGems({ destinations: missing, interests });
+  await ingestGems(found);
+  log.info(`hidden gems: reused ${reused.length}, researched ${found.length}`);
+  return [...reused, ...found];
+}
+
 /** Turns the model's id picks into real Trip JSON. Every number comes from a provider. */
-async function assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection }) {
+async function assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection, dates }) {
   const indexOf = (optionId) => {
     const n = Number(String(optionId).slice(String(optionId).lastIndexOf('-') + 1).replace(/[^0-9]/g, ''));
     return Number.isInteger(n) ? n : 0;
@@ -193,8 +229,8 @@ async function assembleDraft({ input, legs, transportByLeg, staysByDest, attract
     const chosen = selection.legs.find((l) => l.legIndex === i);
     const picked = options[chosen ? indexOf(chosen.optionId) : 0] ?? options[0];
     return {
-      ...toSegment(picked, segId(i)),
-      alternatives: keep(options.filter((o) => o !== picked)),
+      ...toSegment(picked, segId(i), dates[i]),
+      alternatives: keep(options.filter((o) => o !== picked), segId(i)),
     };
   });
 
@@ -207,24 +243,27 @@ async function assembleDraft({ input, legs, transportByLeg, staysByDest, attract
     return [
       {
         ...toAccommodation(picked, { id: stayId(i), destination, nights }),
-        alternatives: keep(options.filter((o) => o !== picked).map((c) => toAccommodation(c, { id: newId('stay'), destination, nights }))),
+        alternatives: keep(options.filter((o) => o !== picked).map((c) => toAccommodation(c, { id: newId('stay'), destination, nights })), stayId(i)),
       },
     ];
   });
 
-  // Days — dedupe across days, the model sometimes repeats a highlight.
-  const used = new Set();
-  const days = assignments.map(({ dayNumber, destination }) => {
+  // Days. Google Places returns "Mehrangarh Fort", "Mehrangarh Fort Way" and
+  // "Mehrangarh Fort Review" as separate POIs, so near-duplicate names are
+  // rejected, not just repeated ids.
+  const dedupe = placeDeduper();
+  const days = assignments.map(({ dayNumber, destination, date }) => {
     const pool = attractionsByDest[destination] ?? [];
     const chosen = selection.days.find((d) => d.dayNumber === dayNumber);
     const picks = (chosen?.activityIds ?? [])
       .map((id) => pool[tailIndex(id)])
-      .filter((c) => c && !used.has(c.placeId) && used.add(c.placeId));
+      .filter((c) => c && dedupe.accept(c));
 
     return {
       id: dayIdOf(dayNumber),
       dayNumber,
       destination,
+      date,
       activities: picks.map((c, k) => toActivity(c, { id: actIdOf(dayNumber, k) })),
     };
   });
@@ -243,6 +282,28 @@ async function assembleDraft({ input, legs, transportByLeg, staysByDest, attract
   return { segments, stays, days, sources };
 }
 
+/**
+ * Turns a web-search gem into a real place: Google Places gives the canonical
+ * name, a placeId (so the Maps link lands on the place, not a text search) and
+ * confirms it exists at all. Unresolvable gems keep their cleaned-up name.
+ */
+async function resolveGem(gem) {
+  try {
+    const [match] = await searchAttractions(gem.destination, { interests: [gem.name], limit: 1 });
+    if (match) return { ...match, isHiddenGem: true, source: gem.url ?? match.source };
+  } catch (e) {
+    log.warn(`could not resolve "${gem.name}" via Places: ${e.message}`);
+  }
+  return {
+    name: normalizePlaceName(gem.name),
+    category: 'hidden_gem',
+    placeId: null,
+    isHiddenGem: true,
+    source: gem.url ?? 'web_search',
+    timestamp: new Date().toISOString(),
+  };
+}
+
 /** Appends whatever the background web research found as a new version. */
 async function patchHiddenGems({ tripId, ownerKey, input, plan, version, gemsJob, send }) {
   const began = now();
@@ -253,41 +314,43 @@ async function patchHiddenGems({ tripId, ownerKey, input, plan, version, gemsJob
   }
 
   const draft = structuredClone(plan);
+
+  // Seed the deduper with what's already planned, so a gem the itinerary
+  // already covers doesn't get added a second time under a different name.
+  const dedupe = placeDeduper();
+  for (const day of draft.days) for (const a of day.activities) dedupe.accept(a);
+
+  const resolved = await Promise.all(gems.map(resolveGem));
   let added = 0;
-  for (const gem of gems) {
-    const day = draft.days.find((d) => d.destination === gem.destination);
-    if (!day) continue;
-    day.activities.push(
-      toActivity(
-        {
-          name: gem.name,
-          category: 'hidden_gem',
-          placeId: null,
-          isHiddenGem: true,
-          source: gem.url ?? 'web_search',
-          timestamp: new Date().toISOString(),
-        },
-        { id: actIdOf(day.dayNumber, day.activities.length) }
-      )
-    );
-    const activity = day.activities.at(-1);
+
+  for (const [i, place] of resolved.entries()) {
+    const day = draft.days.find((d) => d.destination === gems[i].destination);
+    if (!day || !dedupe.accept(place)) continue;
+
+    const activity = toActivity(place, { id: actIdOf(day.dayNumber, day.activities.length) });
     activity.category = 'hidden_gem';
     activity.isHiddenGem = true;
-    activity.notes = gem.note;
-    if (gem.url) draft.sources.push(source(newId('src'), gem.url, 'web', gem.name));
+    activity.notes = gems[i].note;
+    day.activities.push(activity);
+
+    if (gems[i].url) draft.sources.push(source(newId('src'), gems[i].url, 'web', place.name));
     added += 1;
   }
 
-  if (!added) return;
-  // ponytail: no hop computed for a gem — a web-search name often doesn't
-  // geocode cleanly, and a wrong fare is worse than none.
+  if (!added) {
+    log.info(`✓ hidden gems (${since(began)}) all ${gems.length} already covered`);
+    return;
+  }
+
+  // ponytail: no local hop computed for a gem — it is appended to the end of a
+  // day, and a wrong fare is worse than none.
   const next = withComputed({ segments: draft.segments, stays: draft.stays, days: draft.days, sources: draft.sources }, input);
 
   try {
     const saved = await appendVersion({ tripId, ownerKey, expectedVersion: version, plan: next });
     send('patch', { target: 'plan', status: 'gems', data: next, versionNumber: saved.versionNumber });
     send('patch', { target: 'budget', status: 'gems', data: next.budget });
-    log.info(`✓ hidden gems (${since(began)}) patched ${added}`);
+    log.info(`✓ hidden gems (${since(began)}) patched ${added} of ${gems.length}`);
   } catch (e) {
     // The user edited while we were searching — their version wins.
     log.warn(`hidden gems not applied: ${e.message}`);
@@ -416,7 +479,8 @@ export async function generateGuided({ input, ownerKey, emit }) {
   await assertGenerationQuota(ownerKey);
 
   const legs = buildLegs(input);
-  const nightsPlan = splitNights(input.durationDays, destinationsOf(input));
+  const nightsPlan = nightsPerDestination(input);
+  const guidedDates = legDates(input);
   const total = legs.length + nightsPlan.length + input.durationDays;
   let done = 0;
 
@@ -451,6 +515,7 @@ export async function generateGuided({ input, ownerKey, emit }) {
         to: leg.to,
         mode: input.preferredTransport,
         preference: input.preferredTransport,
+        date: guidedDates[legIndex],
       });
       t.done();
       const options = [pick, ...alternatives].filter(Boolean).slice(0, LIMITS.decisionOptions);
@@ -475,8 +540,8 @@ export async function generateGuided({ input, ownerKey, emit }) {
 
       const i = chosenIndex(choice, options.length);
       draft.segments.push({
-        ...toSegment(options[i], segId(legIndex)),
-        alternatives: keep(options.filter((_, k) => k !== i)),
+        ...toSegment(options[i], segId(legIndex), guidedDates[legIndex]),
+        alternatives: keep(options.filter((_, k) => k !== i), segId(legIndex)),
       });
       done += 1;
       await commit();

@@ -3,6 +3,8 @@ import { fetchJson } from '../../shared/fetchJson.js';
 import { cached } from '../../shared/cache.js';
 import { logger } from '../../shared/logger.js';
 import { computeRoute } from './googleEstimator.provider.js';
+import { WEEKDAYS, weekdayOf, addDays } from '../../shared/dates.js';
+import { HttpError } from '../../shared/errors.js';
 
 const log = logger('transport');
 const BASE = 'https://api.railradar.in/v1';
@@ -32,9 +34,40 @@ function travelMinutes(raw) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-const CLASS_PREF = ['3A', 'SL', '2A'];
+const DEFAULT_CLASSES = ['3A', 'SL', '2A'];
 
-export async function getOptions({ from, to, maxFare = null }) {
+/**
+ * RailRadar reports run days inconsistently — names, abbreviations, or a 7-slot
+ * flag array. Parse all three, and when the shape is unrecognised assume the
+ * train runs: dropping every option on a parsing guess is far worse than
+ * showing one that turns out not to run.
+ */
+export function runsOn(runDays, date) {
+  if (!date || !Array.isArray(runDays) || !runDays.length) return true;
+  const want = WEEKDAYS[weekdayOf(date)];
+
+  if (runDays.every((d) => typeof d === 'boolean' || d === 0 || d === 1)) {
+    if (runDays.length !== 7) return true;
+    // A 7-slot flag array is Monday-first in Indian Railways listings.
+    const mondayFirst = [...WEEKDAYS.slice(1), WEEKDAYS[0]];
+    return Boolean(runDays[mondayFirst.indexOf(want)]);
+  }
+
+  const named = runDays.filter((d) => typeof d === 'string').map((d) => d.slice(0, 3).toLowerCase());
+  return named.length ? named.includes(want) : true;
+}
+
+/** The soonest day within a week that any of these trains runs. */
+function nextRunningDate(trains, date, within = 7) {
+  if (!date) return null;
+  for (let i = 1; i <= within; i += 1) {
+    const candidate = addDays(date, i);
+    if (trains.some((t) => runsOn(t.runDays, candidate))) return candidate;
+  }
+  return null;
+}
+
+export async function getOptions({ from, to, maxFare = null, date = null, classes = DEFAULT_CLASSES }) {
   const [fromCode, toCode] = await Promise.all([stationCode(from), stationCode(to)]);
   if (!fromCode || !toCode) return [];
 
@@ -44,8 +77,18 @@ export async function getOptions({ from, to, maxFare = null }) {
     computeRoute(from, to, 'train'),
   ]);
 
-  const trains = body.data?.trains ?? [];
-  if (!trains.length) return [];
+  const allTrains = body.data?.trains ?? [];
+  if (!allTrains.length) return [];
+
+  // Only trains that actually run on the travel date.
+  const trains = allTrains.filter((t) => runsOn(t.runDays, date));
+  if (!trains.length) {
+    // Say when one *does* run rather than reporting a blank.
+    const next = nextRunningDate(allTrains, date);
+    const when = next ? ` The next one runs on ${next}.` : '';
+    log.warn(`no train ${from}->${to} on ${date}.${when}`);
+    throw new HttpError(422, `No train runs ${from} to ${to} on ${date}.${when}`);
+  }
 
   const { distanceKm } = route;
   const timestamp = new Date().toISOString();
@@ -54,7 +97,7 @@ export async function getOptions({ from, to, maxFare = null }) {
     .slice(0, 8)
     .flatMap((t) => {
       const minutes = travelMinutes(t.journeySegment?.travelTime);
-      return CLASS_PREF.map((cls) => ({
+      return classes.map((cls) => ({
         fromPlace: from,
         toPlace: to,
         mode: 'train',

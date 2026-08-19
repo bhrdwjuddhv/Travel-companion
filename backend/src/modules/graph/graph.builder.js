@@ -1,11 +1,16 @@
 // Deterministic layout: a left-to-right spine of places, with each
-// destination's stay / days / activities hanging beneath it.
-const SPINE_X = 900;
-const STAY_Y = 200;
-const DAY_Y0 = 380;
-const DAY_GAP = 260;
-const ACT_X0 = 300;
-const ACT_GAP = 250;
+// destination's stay / days / activities hanging beneath it. Spacing lives in
+// constants so crowding is a config change, not a code change.
+import { GRAPH_LAYOUT } from '../../constants.js';
+
+const {
+  spineX: SPINE_X,
+  stayY: STAY_Y,
+  dayY0: DAY_Y0,
+  dayGap: DAY_GAP,
+  activityX0: ACT_X0,
+  activityGap: ACT_GAP,
+} = GRAPH_LAYOUT;
 
 const node = (id, type, label, data, x, y) => ({ id, type, label, data, position: { x, y } });
 const edge = (source, target, type, label = null, data = null) => ({

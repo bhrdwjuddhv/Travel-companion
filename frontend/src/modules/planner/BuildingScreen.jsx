@@ -15,12 +15,12 @@ export default function BuildingScreen({ current, label, error, onRetry, onBack 
         <div className="mt-7 flex justify-center gap-3">
           <button
             onClick={onRetry}
-            className="rounded-full px-5 py-2 text-sm font-semibold text-neutral-950"
+            className="min-h-11 rounded-full px-5 py-2 text-sm font-semibold text-neutral-950"
             style={{ background: THEME.originGreen }}
           >
             {error.recoverable === false ? 'Start over' : 'Retry'}
           </button>
-          <button onClick={onBack} className="rounded-full border border-neutral-700 px-5 py-2 text-sm text-neutral-300">
+          <button onClick={onBack} className="min-h-11 rounded-full border border-neutral-700 px-5 py-2 text-sm text-neutral-300">
             Change the trip
           </button>
         </div>
@@ -29,12 +29,12 @@ export default function BuildingScreen({ current, label, error, onRetry, onBack 
   }
 
   return (
-    <div className="w-full max-w-xl">
+    <div className="w-full max-w-xl px-1">
       <h1 className="text-center text-lg font-semibold text-neutral-100">Building your trip</h1>
       <p className="mt-1 text-center text-sm text-neutral-400">{label ?? 'Starting...'}</p>
 
       {/* A route drawing itself from the green origin outward. */}
-      <div className="relative mt-10 h-10">
+      <div className="relative mt-8 hidden h-10 sm:block">
         <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-neutral-800" />
         <div
           className="absolute left-0 top-1/2 h-px -translate-y-1/2 transition-[width] duration-700 ease-out"

@@ -15,22 +15,61 @@ export const THEME = {
   scrim: 'rgba(9, 9, 11, 0.74)',
   scrimStrong: 'rgba(9, 9, 11, 0.86)',
 
-  // React Flow ships light-mode chrome. These tokens are pushed to CSS custom
-  // properties by shared/theme.js, so index.css never hardcodes a colour.
+  // React Flow themes its own chrome from <ReactFlow colorMode>; only the
+  // accent it can't know about is published to CSS.
   graph: {
-    controlBg: '#18181b',
-    controlBorder: '#3f3f46',
-    controlIcon: '#e4e4e7',
-    controlHoverBg: '#27272a',
-    controlActiveBg: '#3f3f46',
-    minimapBg: '#111113',
-    minimapMask: 'rgba(0, 0, 0, 0.62)',
-    minimapNode: '#3f3f46',
-    backgroundDots: '#27272a',
-    attribution: 'rgba(161, 161, 170, 0.55)',
+    accent: '#22c55e',
     pending: '#52525b',
   },
 };
+
+/**
+ * 'light' | 'dark' | 'system'. Drives <ReactFlow colorMode>, which themes the
+ * controls, minimap and background for us.
+ */
+export const COLOR_MODE = 'system';
+
+/** One calm colour per node type — accent only, never a full fill. */
+export const NODE_COLORS = {
+  origin: '#22c55e',      // green: the start, same as the CTA
+  return: '#22c55e',
+  destination: '#14b8a6', // teal
+  stay: '#a78bfa',        // purple
+  day: '#f59e0b',         // amber
+  activity: '#fb923c',    // warm
+  hidden_gem: '#fbbf24',
+};
+
+export const MAPS = {
+  // Place id makes the link land on the exact place rather than a text search.
+  searchUrl: 'https://www.google.com/maps/search/?api=1',
+};
+
+export const EXPORT = {
+  pixelRatio: 2,
+  pdfFilename: '{trip}-itinerary.pdf',
+  icsFilename: '{trip}.ics',
+  backgroundColor: '#09090b',
+  // Each PDF page is sized to its own day card, so a packed day gets a taller
+  // page instead of being squeezed onto A4.
+  pdfPageUnit: 'px',
+};
+
+/** Framing for the flow canvas on open — it used to load unreadably small. */
+export const GRAPH_VIEW = {
+  fitViewOptions: { padding: 0.15, minZoom: 0.4, maxZoom: 1.2 },
+  minZoom: 0.15,
+  maxZoom: 2,
+  minimapSize: { width: 200, height: 140 },
+  minimapStrokeWidth: 6,
+};
+
+export const BUDGET_TIERS = [
+  { id: 'budget', label: 'Budget-friendly', blurb: 'Cheap beds, sleeper class, mostly free sights.' },
+  { id: 'balanced', label: 'Comfortable', blurb: 'Decent hotels, AC class, a paid sight or two a day.' },
+  { id: 'premium', label: 'Premium', blurb: 'Heritage stays, the good class, book what you like.' },
+];
+export const DEFAULT_BUDGET_TIER = 'balanced';
 
 // Landing scroll image sequence. Drop frames in /public/image-sequence and set
 // the pattern + count here. '####' becomes the zero-padded index.
@@ -53,6 +92,8 @@ export const LIMITS = {
 
 export const FEATURES = {
   mobileTimelineFallbackWidthPx: 768,
+  // Below this the node canvas is painful on a phone, so Calendar opens first.
+  mobileBreakpointPx: 768,
   transitionMs: 520,        // green wipe from the CTA into /planning
   nodeGrowMsPerColumn: 220, // graph grows outward from the green origin
   nodeGrowMsPerRow: 70,

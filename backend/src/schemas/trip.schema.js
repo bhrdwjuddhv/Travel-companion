@@ -1,7 +1,8 @@
 // The normalized Trip JSON — the backbone. Defined once, reused for agent
 // output, DB writes, mutations, and the graph builder.
 import { z } from 'zod';
-import { LIMITS } from '../constants.js';
+import { LIMITS, DEFAULT_BUDGET_TIER } from '../constants.js';
+import { daysBetween, isIsoDate } from '../shared/dates.js';
 
 const PriceType = z.enum(['quoted', 'estimate']);
 const Mode = z.enum(['train', 'bus', 'flight', 'car']);
@@ -29,6 +30,9 @@ const segmentFields = {
   fareType: PriceType,
   class: z.string().nullable(),
   stops: z.number().nullable(),
+  // nullish, not nullable: plans saved before dates existed have no key at all,
+  // and they must keep validating.
+  date: z.string().nullish().default(null).describe('YYYY-MM-DD the leg departs'),
   source: z.string(),
   timestamp: z.string(),
 };
@@ -83,6 +87,7 @@ export const DayPlan = z.object({
   id: z.string(),
   dayNumber: z.number(),
   destination: z.string(),
+  date: z.string().nullish().default(null).describe('YYYY-MM-DD'),
   activities: z.array(Activity),
 });
 
@@ -140,17 +145,33 @@ export const TripPlan = z.object({
   graph: z.object({ nodes: z.array(GraphNode), edges: z.array(GraphEdge) }),
 });
 
-export const TripInput = z.object({
+const isoDate = z.string().refine(isIsoDate, 'Expected a YYYY-MM-DD date');
+
+const TripInputFields = z.object({
   origin: z.string().min(2),
   primaryDestination: z.string().min(2),
   additionalDestinations: z.array(z.string()).max(LIMITS.maxDestinations - 1).default([]),
-  durationDays: z.number().int().min(1).max(LIMITS.maxDays),
+  startDate: isoDate,
+  endDate: isoDate,
   direction: z.enum(['round', 'oneway']).default('round'),
+  // Optional hard cap. The tier below is what shapes the plan when it's absent.
   budgetTotal: z.number().positive().nullish(),
   budgetPerPerson: z.number().positive().nullish(),
+  budgetTier: z.enum(['budget', 'balanced', 'premium']).default(DEFAULT_BUDGET_TIER),
   preferredTransport: z.enum(['train', 'bus', 'flight', 'car', 'any']).default('any'),
   travellerCount: z.number().int().min(1).default(1),
   interests: z.array(z.string()).default([]),
   accommodationPreference: z.enum(['hotel', 'hostel', 'homestay', 'budget', 'any']).default('any'),
   planningMode: z.enum(['auto', 'guided', 'semi']).default('auto'),
+});
+
+/**
+ * `durationDays` is derived from the date range, never taken from the client —
+ * one source of truth, so a picker and a day count can't disagree.
+ */
+export const TripInput = TripInputFields.transform((v) => ({
+  ...v,
+  durationDays: daysBetween(v.startDate, v.endDate) + 1,
+})).refine((v) => v.durationDays >= 1 && v.durationDays <= LIMITS.maxDays, {
+  message: `Trip must run between 1 and ${LIMITS.maxDays} days, and end on or after it starts`,
 });

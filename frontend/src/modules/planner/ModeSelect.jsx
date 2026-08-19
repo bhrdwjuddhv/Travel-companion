@@ -2,18 +2,18 @@ import { PLANNING_MODES, THEME } from '../../constants';
 
 export default function ModeSelect({ onSelect, onBack }) {
   return (
-    <div className="w-full max-w-4xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-neutral-100">How do you want to plan?</h1>
+    <div className="w-full max-w-4xl px-1">
+      <h1 className="text-xl font-semibold tracking-tight text-neutral-100 sm:text-2xl">How do you want to plan?</h1>
       <p className="mt-2 text-sm text-neutral-400">
         All three produce the same editable plan — only how much you decide changes.
       </p>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-3">
         {PLANNING_MODES.map((mode) => (
           <button
             key={mode.id}
             onClick={() => onSelect(mode.id)}
-            className="group flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5 text-left transition hover:border-neutral-600 hover:bg-neutral-900"
+            className="group flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 text-left transition hover:border-neutral-600 hover:bg-neutral-900 active:border-neutral-500 sm:p-5"
           >
             <span className="text-[11px] uppercase tracking-wider" style={{ color: THEME.originGreen }}>
               {mode.tagline}
@@ -29,7 +29,7 @@ export default function ModeSelect({ onSelect, onBack }) {
               ))}
             </ul>
             <span
-              className="mt-5 text-xs font-medium opacity-0 transition group-hover:opacity-100"
+              className="mt-5 text-xs font-medium opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100"
               style={{ color: THEME.originGreen }}
             >
               Choose {mode.name} &rarr;
@@ -38,7 +38,7 @@ export default function ModeSelect({ onSelect, onBack }) {
         ))}
       </div>
 
-      <button onClick={onBack} className="mt-8 text-sm text-neutral-500 hover:text-neutral-300">
+      <button onClick={onBack} className="mt-8 min-h-11 text-sm text-neutral-500 hover:text-neutral-300">
         &larr; Back
       </button>
     </div>

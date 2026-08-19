@@ -2,10 +2,11 @@
 // mutation functions so both produce identical structures.
 import { randomUUID } from 'node:crypto';
 import { localHop } from '../transport/transport.service.js';
+import { addDays } from '../../shared/dates.js';
 
 export const newId = (prefix) => `${prefix}-${randomUUID().slice(0, 8)}`;
 
-export const toSegment = (option, id) => ({ ...option, id, alternatives: [] });
+export const toSegment = (option, id, date = null) => ({ ...option, id, date: option.date ?? date, alternatives: [] });
 
 export const toAccommodation = (candidate, { id, destination, nights }) => ({
   id,
@@ -87,14 +88,46 @@ export const stayId = (i) => `stay-${i + 1}`;
 export const dayIdOf = (dayNumber) => `day-${dayNumber}`;
 export const actIdOf = (dayNumber, k) => `act-${dayNumber}-${k + 1}`;
 
+/** How many *days* are spent at each destination. */
+export const daysPerDestination = (input) => splitNights(input.durationDays, destinationsOf(input));
+
+/**
+ * How many *nights* are booked at each destination. One fewer than the day
+ * count: you travel home on the last day rather than sleeping there.
+ */
+export const nightsPerDestination = (input) =>
+  splitNights(Math.max(input.durationDays - 1, 1), destinationsOf(input));
+
 /** Which destination each numbered day belongs to. One definition, used twice. */
 export function dayAssignments(input) {
   const out = [];
   let dayNumber = 0;
-  for (const { destination, nights } of splitNights(input.durationDays, destinationsOf(input))) {
-    for (let i = 0; i < nights; i += 1) out.push({ dayNumber: (dayNumber += 1), destination });
+  for (const { destination, nights: days } of daysPerDestination(input)) {
+    for (let i = 0; i < days; i += 1) out.push({ dayNumber: (dayNumber += 1), destination, date: null });
   }
-  return out;
+  return out.map((d, i) => ({ ...d, date: input.startDate ? addDays(input.startDate, i) : null }));
+}
+
+/**
+ * The date each leg departs — trains don't run every day, so every transport
+ * lookup needs one. Legs advance by the days spent at the previous stop, and a
+ * round trip's final leg is pinned to the end date.
+ */
+export function legDates(input) {
+  const legs = buildLegs(input);
+  if (!input.startDate) return legs.map(() => null);
+
+  const perDest = daysPerDestination(input);
+  const dates = [];
+  let cursor = input.startDate;
+
+  legs.forEach((_, i) => {
+    dates.push(cursor);
+    cursor = addDays(cursor, perDest[i]?.nights ?? 1);
+  });
+
+  if (input.direction === 'round' && input.endDate) dates[dates.length - 1] = input.endDate;
+  return dates;
 }
 
 /** Journey legs in order: origin -> each destination -> back, if round trip. */

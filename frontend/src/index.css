@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Tailwind's dark: variant follows the same resolved mode React Flow gets, so
+   the two can never disagree. shared/theme.js stamps the attribute. */
+@custom-variant dark (&:where([data-color-mode="dark"], [data-color-mode="dark"] *));
+
 html {
   scroll-behavior: smooth;
   background: #09090b;
@@ -42,78 +46,12 @@ html {
   animation: edges-in 700ms ease-out 260ms backwards;
 }
 
-/* ------------------------------------------------------------------ *
- * React Flow dark chrome. Every colour comes from THEME.graph via
- * shared/theme.js — see constants.js to change any of them.
- * ------------------------------------------------------------------ */
-
-.react-flow__controls {
-  background: var(--rf-control-bg);
-  border: 1px solid var(--rf-control-border);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
-}
-
-.react-flow__controls-button {
-  background: var(--rf-control-bg);
-  border: none;
-  border-bottom: 1px solid var(--rf-control-border);
-  color: var(--rf-control-icon);
-  width: 28px;
-  height: 28px;
-  transition: background-color 120ms ease;
-}
-
-.react-flow__controls-button:last-child {
-  border-bottom: none;
-}
-
+/* React Flow themes its own chrome from <ReactFlow colorMode>, so controls,
+   minimap, background and attribution need no overrides here. Only the two
+   things it can't know about are kept: the origin-green accent on the fit-view
+   control, and the edge fade-in above. */
 .react-flow__controls-button:hover {
-  background: var(--rf-control-hover-bg);
-}
-
-.react-flow__controls-button:active,
-.react-flow__controls-button:focus-visible {
-  background: var(--rf-control-active-bg);
-  outline: none;
-}
-
-.react-flow__controls-button:disabled {
-  opacity: 0.4;
-}
-
-/* The icons are inline SVG with a hardcoded dark fill — override it. */
-.react-flow__controls-button svg,
-.react-flow__controls-button svg path {
-  fill: var(--rf-control-icon);
-}
-
-.react-flow__minimap {
-  background: var(--rf-minimap-bg);
-  border: 1px solid var(--rf-control-border);
-  border-radius: 0.5rem;
-}
-
-.react-flow__minimap-mask {
-  fill: var(--rf-minimap-mask);
-}
-
-.react-flow__minimap-node {
-  fill: var(--rf-minimap-node);
-  stroke: none;
-}
-
-.react-flow__background-pattern {
-  color: var(--rf-background-dots);
-}
-
-.react-flow__attribution {
-  background: transparent;
-}
-
-.react-flow__attribution a {
-  color: var(--rf-attribution);
+  color: var(--rf-accent);
 }
 
 /* A node whose real data hasn't streamed in yet. */

@@ -1,4 +1,6 @@
-import { buildLegs, splitNights, destinationsOf, dayAssignments, segId, stayId, dayIdOf } from './planner.assemble.js';
+import {
+  buildLegs, nightsPerDestination, dayAssignments, legDates, segId, stayId, dayIdOf,
+} from './planner.assemble.js';
 
 const PENDING = { source: 'pending', timestamp: new Date(0).toISOString(), pending: true };
 
@@ -9,7 +11,7 @@ const PENDING = { source: 'pending', timestamp: new Date(0).toISOString(), pendi
  */
 export function buildSkeleton(input) {
   const legs = buildLegs(input);
-  const nightsPlan = splitNights(input.durationDays, destinationsOf(input));
+  const dates = legDates(input);
 
   return {
     segments: legs.map((leg, i) => ({
@@ -25,11 +27,12 @@ export function buildSkeleton(input) {
       fareType: 'estimate',
       class: null,
       stops: null,
+      date: dates[i] ?? null,
       alternatives: [],
       ...PENDING,
     })),
 
-    stays: nightsPlan.map(({ destination, nights }, i) => ({
+    stays: nightsPerDestination(input).map(({ destination, nights }, i) => ({
       id: stayId(i),
       destination,
       name: 'Finding a place to stay…',
@@ -45,10 +48,11 @@ export function buildSkeleton(input) {
       ...PENDING,
     })),
 
-    days: dayAssignments(input).map(({ dayNumber, destination }) => ({
+    days: dayAssignments(input).map(({ dayNumber, destination, date }) => ({
       id: dayIdOf(dayNumber),
       dayNumber,
       destination,
+      date,
       activities: [],
       pending: true,
     })),

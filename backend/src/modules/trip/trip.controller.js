@@ -2,10 +2,19 @@ import { z } from 'zod';
 import { parseOrThrow } from '../../shared/validate.js';
 import { applyMutation } from '../planner/planner.mutations.js';
 import { budgetVerdict } from '../budget/budget.service.js';
-import { getTrip, listTrips, appendVersion } from './trip.service.js';
+import { getTrip, listTrips, appendVersion, saveLayout } from './trip.service.js';
 
 export const show = async (req, res) => res.json(await getTrip(req.params.id, req.ownerKey));
 export const index = async (req, res) => res.json(await listTrips(req.ownerKey));
+
+const Point = z.object({ x: z.number(), y: z.number() });
+const LayoutBody = z.object({ layout: z.record(z.string(), Point) });
+
+/** PUT /api/trips/:id/layout — where the user dragged things to. */
+export async function layout(req, res) {
+  const body = parseOrThrow(LayoutBody, req.body, 'layout');
+  res.json(await saveLayout(req.params.id, req.ownerKey, body.layout));
+}
 
 const MutateBody = z.object({
   expectedVersion: z.number().int().min(1),

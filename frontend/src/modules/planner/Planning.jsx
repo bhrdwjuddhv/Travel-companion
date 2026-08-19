@@ -101,7 +101,10 @@ export default function Planning() {
       // once it closes, the saved trip has everything.
       if (landedOn && !failed) navigate(`/trip/${landedOn}`, { replace: true });
     } catch (e) {
-      setError({ message: e.message, recoverable: true });
+      // The plan was saved before the connection died — a dropped stream during
+      // the background research is no reason to throw the trip away.
+      if (landedOn) navigate(`/trip/${landedOn}`, { replace: true });
+      else setError({ message: e.message, recoverable: true });
     }
   };
 
@@ -161,7 +164,7 @@ export default function Planning() {
 
       {/* A decision always wins the screen — it is the thing blocking the run. */}
       {step === 'building' && decision && (
-        <div className="flex h-screen flex-col lg:flex-row">
+        <div className="flex h-[100dvh] flex-col lg:flex-row">
           {livePlan && (
             <div className="min-h-0 flex-1">
               <TripGraph plan={livePlan} />
@@ -182,7 +185,7 @@ export default function Planning() {
         (livePlan ? (
           // The graph is on screen from the first moment and fills in as SSE
           // patches land — no spinner, no waiting for the whole plan.
-          <div className="flex h-screen flex-col">
+          <div className="flex h-[100dvh] flex-col">
             <LiveStrip progress={progress} error={statusError} onRetry={retry} busy={busy} />
             <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
               <div className="min-h-0 flex-1">
@@ -243,5 +246,5 @@ function LiveStrip({ progress, error, onRetry, busy }) {
 }
 
 const Centered = ({ children }) => (
-  <div className="flex min-h-screen items-center justify-center px-5 py-16">{children}</div>
+  <div className="flex min-h-[100dvh] items-center justify-center px-4 py-10 sm:px-5 sm:py-16">{children}</div>
 );

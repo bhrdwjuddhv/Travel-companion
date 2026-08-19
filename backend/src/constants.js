@@ -28,7 +28,7 @@ export const MODELS = {
   PLANNER: process.env.OPENAI_MODEL || 'gpt-4',
   // Selection/sequencing is judgment over a short shortlist — a small model is
   // plenty, and it's the difference between ~2s and ~20s.
-  PLANNER_FAST: process.env.OPENAI_MODEL_FAST || 'gpt-4-mini',
+  PLANNER_FAST: process.env.OPENAI_MODEL_FAST || 'gpt-4o-mini',
   EMBEDDING: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
   GUARDRAIL: process.env.OPENAI_GUARDRAIL_MODEL || 'gpt-4-mini',
 };
@@ -48,6 +48,7 @@ export const TTL_HOURS = {
   fare: 6,
   hours: 24,           // opening hours
   event: 12,
+  hiddenGem: 24 * 14,  // how long a city's gems stay fresh in Qdrant
 };
 
 // Seed local-fare estimator. Owner tunes per city. All in INR.
@@ -84,6 +85,39 @@ export const STAY_RATES = {
 // fareType to "quoted") once the owner confirms its query params.
 export const TRAIN_FARE_PER_KM = { SL: 0.55, '3A': 1.5, '2A': 2.1, '1A': 3.6, base: 30 };
 
+/**
+ * How generous the trip should be, when no exact number is given. A numeric
+ * budgetTotal, if supplied, still acts as a hard cap on top of the tier.
+ */
+export const BUDGET_TIERS = {
+  budget: {
+    label: 'Budget-friendly',
+    blurb: 'Cheap beds, sleeper class, mostly free sights.',
+    maxPricePerNight: 1800,
+    trainClasses: ['SL', '3A'],
+    paidActivitiesPerDay: 1,
+    foodPerPersonPerDay: 350,
+  },
+  balanced: {
+    label: 'Comfortable',
+    blurb: 'Decent hotels, AC class, a paid sight or two a day.',
+    maxPricePerNight: 4000,
+    trainClasses: ['3A', '2A'],
+    paidActivitiesPerDay: 2,
+    foodPerPersonPerDay: 500,
+  },
+  premium: {
+    label: 'Premium',
+    blurb: 'Heritage stays, the good class, book what you like.',
+    maxPricePerNight: 12000,
+    trainClasses: ['2A', '1A'],
+    paidActivitiesPerDay: 3,
+    foodPerPersonPerDay: 900,
+  },
+};
+
+export const DEFAULT_BUDGET_TIER = 'balanced';
+
 export const BUDGET_DEFAULTS = {
   foodPerPersonPerDay: 500, // INR
   miscBufferPct: 0.08,      // 8% buffer
@@ -100,6 +134,24 @@ export const LIMITS = {
   decisionTimeoutMinutes: 15, // how long a paused Stepwise run waits for a choice
   decisionOptions: 4,         // shortlist size shown per decision
   storedAlternatives: 5,      // alternatives kept on each segment/stay for Semi mode
+};
+
+// Deterministic graph layout, in pixels. Widen these if nodes ever crowd.
+export const GRAPH_LAYOUT = {
+  spineX: 1250,   // gap between places on the main journey line
+  stayY: 220,     // stay sits just below its destination
+  dayY0: 440,     // first day row
+  dayGap: 340,    // between day rows at the same destination
+  activityX0: 330, // first activity, right of its day
+  activityGap: 270,
+};
+
+// When the traveller states no preference, distance decides which providers are
+// worth calling at all. Thresholds in km, tune per market.
+export const MODE_BY_DISTANCE = {
+  shortMaxKm: 350,   // car, bus, train are all sensible
+  mediumMaxKm: 900,  // train and bus
+  // beyond mediumMaxKm: train and flight
 };
 
 // Per-call ceilings. On timeout the pipeline falls back to an estimate and

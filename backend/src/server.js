@@ -25,6 +25,18 @@ app.use((err, _req, res, _next) => {
 });
 
 await connectMongo();
-qdrantStatus = await ensureCollection().catch((e) => `error: ${e.message}`);
 
-app.listen(ENV.PORT, () => console.log(`api on http://localhost:${ENV.PORT} (qdrant: ${qdrantStatus})`));
+app.listen(ENV.PORT, () => console.log(`api on http://localhost:${ENV.PORT}`));
+
+// Qdrant is optional (gems fall back to live research), so warm it up *after*
+// binding — an unreachable Qdrant used to hold the whole API offline until its
+// connection attempt gave up.
+ensureCollection()
+  .then((status) => {
+    qdrantStatus = status;
+    console.log(`qdrant: ${status}`);
+  })
+  .catch((e) => {
+    qdrantStatus = `error: ${e.message}`;
+    console.warn(`qdrant unavailable, hidden gems will be researched fresh each time: ${e.message}`);
+  });
