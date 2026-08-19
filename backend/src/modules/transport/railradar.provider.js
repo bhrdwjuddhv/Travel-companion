@@ -36,6 +36,14 @@ function travelMinutes(raw) {
 
 const DEFAULT_CLASSES = ['3A', 'SL', '2A'];
 
+/** "22:40", "22:40:00" or "2026-09-01T22:40:00Z" -> "22:40". */
+export function clockTime(raw) {
+  const m = String(raw ?? '').match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  return hh >= 0 && hh <= 23 ? `${String(hh).padStart(2, '0')}:${m[2]}` : null;
+}
+
 /**
  * RailRadar reports run days inconsistently — names, abbreviations, or a 7-slot
  * flag array. Parse all three, and when the shape is unrecognised assume the
@@ -110,6 +118,10 @@ export async function getOptions({ from, to, maxFare = null, date = null, classe
         fareType: 'estimate',
         class: cls,
         stops: t.journeySegment?.stops ?? null,
+        // The clock is what decides whether the arrival day is a sightseeing
+        // day at all, so carry it through rather than only the duration.
+        departureTime: clockTime(t.journeySegment?.departureTime),
+        arrivalTime: clockTime(t.journeySegment?.arrivalTime),
         source: 'railradar_api',
         timestamp,
       }));

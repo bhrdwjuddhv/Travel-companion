@@ -15,7 +15,7 @@ export default function EditContextChip({ context, onClose }) {
   if (!context) return null;
 
   return (
-    <div className="border-t border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="border-t border-neutral-200 px-3 py-2 dark:border-neutral-800">
       <div className="flex items-center gap-2">
         <span
           className="inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-xs"
@@ -29,10 +29,6 @@ export default function EditContextChip({ context, onClose }) {
         </button>
       </div>
 
-      <p className="mt-3 text-xs text-neutral-500">
-        AI chat editing is not wired up yet — this chip is the hook it will attach to. For now, use the dropdowns on
-        the node itself in Semi mode.
-      </p>
     </div>
   );
 }

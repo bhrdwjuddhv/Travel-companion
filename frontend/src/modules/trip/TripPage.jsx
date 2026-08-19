@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, Share2, Workflow } from 'lucide-react';
-import TripGraph from '../graph/TripGraph';
+import { CalendarDays, MessageSquare, Share2, Workflow } from 'lucide-react';
+import TripCanvas from '../graph/TripCanvas';
 import BudgetPanel from '../budget/BudgetPanel';
 import CalendarView from '../calendar/CalendarView';
-import EditContextChip from '../chat/EditContextChip';
+import ChatPanel from '../chat/ChatPanel';
+import ThemeToggle from '../../shared/ThemeToggle';
 import { api } from '../../shared/api';
 import { THEME } from '../../constants';
 import { useIsMobile } from '../../shared/useIsMobile';
@@ -24,6 +25,7 @@ export default function TripPage() {
   const isMobile = useIsMobile();
   const [view, setView] = useState(isMobile ? 'calendar' : 'graph');
   const [editContext, setEditContext] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const layoutRef = useRef({});
   const saveTimer = useRef(null);
@@ -115,6 +117,20 @@ export default function TripPage() {
           </div>
 
           <button
+            onClick={() => setChatOpen((v) => !v)}
+            className={`flex min-h-9 items-center gap-1.5 rounded-full border px-4 py-1.5 ${
+              chatOpen
+                ? 'border-transparent bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                : 'border-neutral-300 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900'
+            }`}
+          >
+            <MessageSquare size={13} />
+            Chat
+          </button>
+
+          <ThemeToggle />
+
+          <button
             onClick={share}
             className="flex min-h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
           >
@@ -136,13 +152,40 @@ export default function TripPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col">
           {view === 'graph' ? (
-            <TripGraph plan={plan} semi={semi} onEdit={setEditContext} onLayoutChange={onLayoutChange} />
+            <TripCanvas
+              plan={plan}
+              semi={semi}
+              onEdit={(context) => {
+                setEditContext(context);
+                setChatOpen(true);
+              }}
+              onLayoutChange={onLayoutChange}
+            />
           ) : (
             <CalendarView trip={trip} />
           )}
-          <EditContextChip context={editContext} onClose={() => setEditContext(null)} />
         </div>
-        <BudgetPanel budget={plan.budget} verdict={trip.budgetVerdict} />
+
+        {chatOpen && (
+          <div className="h-80 w-full shrink-0 border-t border-neutral-200 lg:h-auto lg:w-96 lg:border-l lg:border-t-0 dark:border-neutral-800">
+            <ChatPanel
+              tripId={tripId}
+              context={editContext}
+              onClearContext={() => setEditContext(null)}
+              onApplied={(result) => setTrip((t) => ({ ...t, ...result }))}
+              onClose={() => setChatOpen(false)}
+            />
+          </div>
+        )}
+
+        <BudgetPanel
+          key={trip.versionNumber}
+          budget={plan.budget}
+          verdict={trip.budgetVerdict}
+          tripId={tripId}
+          versionNumber={trip.versionNumber}
+          onRefit={(result) => setTrip((t) => ({ ...t, ...result }))}
+        />
       </div>
     </main>
   );

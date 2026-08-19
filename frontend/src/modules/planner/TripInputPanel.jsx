@@ -34,6 +34,7 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
     travellerCount: 2,
     interests: '',
     accommodationPreference: 'any',
+    specialRequests: '',
   });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
@@ -64,6 +65,7 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
       travellerCount: Number(f.travellerCount),
       interests: csv(f.interests),
       accommodationPreference: f.accommodationPreference,
+      specialRequests: f.specialRequests.trim() || null,
       planningMode: mode,
     });
   };
@@ -186,6 +188,17 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
               );
             })}
           </div>
+        </div>
+
+        <div className="sm:col-span-2">
+          <span className={label}>Special requests (optional)</span>
+          <textarea
+            rows={2}
+            className={`${field} resize-none`}
+            value={f.specialRequests}
+            onChange={set('specialRequests')}
+            placeholder="vegetarian food · avoid long train rides · temples over nightlife"
+          />
         </div>
 
         <div className="sm:col-span-2">

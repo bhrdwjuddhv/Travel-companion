@@ -2,6 +2,10 @@ import { BUDGET_DEFAULTS, BUDGET_TIERS, DEFAULT_BUDGET_TIER } from '../../consta
 
 export const tierOf = (input) => BUDGET_TIERS[input?.budgetTier] ?? BUDGET_TIERS[DEFAULT_BUDGET_TIER];
 
+/** The food slider overrides the tier's rate; otherwise the tier decides. */
+export const foodRate = (draft, input) =>
+  draft?.budgetOverrides?.foodPerPersonPerDay ?? tierOf(input).foodPerPersonPerDay;
+
 const sum = (arr, f) => arr.reduce((n, x) => n + (f(x) || 0), 0);
 const allActivities = (days) => days.flatMap((d) => d.activities);
 
@@ -18,7 +22,7 @@ export function computeBudget(draft, input) {
   const lines = {
     intercityTransport: sum(draft.segments, (s) => s.fare) * travellers,
     accommodation: sum(draft.stays, (s) => s.pricePerNight * s.nights) * rooms,
-    food: tierOf(input).foodPerPersonPerDay * durationDays * travellers,
+    food: foodRate(draft, input) * durationDays * travellers,
     activities: sum(activities, (a) => a.ticketCost) * travellers,
     localTransport: sum(activities, (a) => a.localTransportFromPrev?.estimatedFare) * vehicles,
   };

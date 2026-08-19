@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { COLOR_MODE, THEME } from '../constants';
+import { COLOR_MODE, COLOR_MODE_STORAGE, THEME } from '../constants';
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
@@ -13,27 +13,50 @@ export function applyThemeVars(root = document.documentElement) {
   }
 }
 
-const resolve = () => (COLOR_MODE === 'system' ? (media().matches ? 'dark' : 'light') : COLOR_MODE);
+const readPreference = () => localStorage.getItem(COLOR_MODE_STORAGE) || COLOR_MODE;
+const resolve = (pref) => (pref === 'system' ? (media().matches ? 'dark' : 'light') : pref);
 
 /**
- * Resolves COLOR_MODE to a concrete 'light' | 'dark' and stamps it on <html>,
- * so React Flow's colorMode and Tailwind's dark: variant always agree — one
- * can't be dark while the other is light.
+ * Applies the resolved theme to <html> immediately, before React paints, so
+ * there's no flash of the wrong theme on load.
  */
+export function initTheme() {
+  const mode = resolve(readPreference());
+  document.documentElement.dataset.colorMode = mode;
+  document.documentElement.classList.toggle('dark', mode === 'dark');
+}
+
+/** The concrete 'light' | 'dark' currently in force. */
 export function useColorMode() {
-  const [mode, setMode] = useState(resolve);
+  const [mode, setMode] = useState(() => resolve(readPreference()));
 
   useEffect(() => {
-    document.documentElement.dataset.colorMode = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    if (COLOR_MODE !== 'system') return;
+    const sync = () => setMode(resolve(readPreference()));
+    // Both a system change and our own toggle should land here.
     const mq = media();
-    const onChange = () => setMode(resolve());
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    mq.addEventListener('change', sync);
+    window.addEventListener('colormodechange', sync);
+    return () => {
+      mq.removeEventListener('change', sync);
+      window.removeEventListener('colormodechange', sync);
+    };
   }, []);
 
   return mode;
+}
+
+/** The user's stored choice: 'light' | 'dark' | 'system'. */
+export function useThemePreference() {
+  const [preference, setPreference] = useState(readPreference);
+
+  const choose = (next) => {
+    localStorage.setItem(COLOR_MODE_STORAGE, next);
+    setPreference(next);
+    const mode = resolve(next);
+    document.documentElement.dataset.colorMode = mode;
+    document.documentElement.classList.toggle('dark', mode === 'dark');
+    window.dispatchEvent(new Event('colormodechange'));
+  };
+
+  return [preference, choose];
 }

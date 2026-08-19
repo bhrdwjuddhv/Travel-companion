@@ -4,7 +4,7 @@ import ModeSelect from './ModeSelect';
 import TripInputPanel from './TripInputPanel';
 import BuildingScreen from './BuildingScreen';
 import DecisionFlow from './DecisionFlow';
-import TripGraph from '../graph/TripGraph';
+import TripCanvas from '../graph/TripCanvas';
 import BudgetPanel from '../budget/BudgetPanel';
 import { postSSE } from '../../shared/sse';
 import { api } from '../../shared/api';
@@ -167,7 +167,7 @@ export default function Planning() {
         <div className="flex h-[100dvh] flex-col lg:flex-row">
           {livePlan && (
             <div className="min-h-0 flex-1">
-              <TripGraph plan={livePlan} />
+              <TripCanvas plan={livePlan} />
             </div>
           )}
           <div
@@ -189,7 +189,7 @@ export default function Planning() {
             <LiveStrip progress={progress} error={statusError} onRetry={retry} busy={busy} />
             <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
               <div className="min-h-0 flex-1">
-                <TripGraph plan={livePlan} />
+                <TripCanvas plan={livePlan} />
               </div>
               <BudgetPanel budget={livePlan.budget} />
             </div>

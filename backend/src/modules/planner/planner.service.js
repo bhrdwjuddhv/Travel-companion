@@ -13,6 +13,7 @@ import { buildSkeleton } from './planner.skeleton.js';
 import { selectPlan, researchHiddenGems } from './planner.select.js';
 import { freshGemsFor, ingestGems } from '../rag/rag.service.js';
 import { placeDeduper, normalizePlaceName } from '../../shared/placeName.js';
+import { paceForDay, trimToPace } from './dayPace.js';
 import {
   newId, toSegment, toAccommodation, toActivity, rehop, buildLegs, nightsPerDestination,
   destinationsOf, dayAssignments, legDates, segId, stayId, dayIdOf, actIdOf,
@@ -252,19 +253,29 @@ async function assembleDraft({ input, legs, transportByLeg, staysByDest, attract
   // "Mehrangarh Fort Review" as separate POIs, so near-duplicate names are
   // rejected, not just repeated ids.
   const dedupe = placeDeduper();
+  const usedPlaceIds = new Set();
   const days = assignments.map(({ dayNumber, destination, date }) => {
     const pool = attractionsByDest[destination] ?? [];
     const chosen = selection.days.find((d) => d.dayNumber === dayNumber);
     const picks = (chosen?.activityIds ?? [])
       .map((id) => pool[tailIndex(id)])
-      .filter((c) => c && dedupe.accept(c));
+      .filter((c) => c && dedupe.accept(c) && (usedPlaceIds.add(c.placeId), true));
+
+    // The trains touching this day decide how much of it is actually free.
+    const shape = paceForDay({ date, destination, segments });
+    const activities = trimToPace(
+      picks.map((c, k) => toActivity(c, { id: actIdOf(dayNumber, k) })),
+      shape
+    );
 
     return {
       id: dayIdOf(dayNumber),
       dayNumber,
       destination,
       date,
-      activities: picks.map((c, k) => toActivity(c, { id: actIdOf(dayNumber, k) })),
+      pace: shape.pace,
+      anchorNote: shape.anchorNote,
+      activities,
     };
   });
 
@@ -279,7 +290,17 @@ async function assembleDraft({ input, legs, transportByLeg, staysByDest, attract
       : []),
   ];
 
-  return { segments, stays, days, sources };
+  // Everything researched but not used, kept so budget sliders can re-fit the
+  // trip later without another provider call.
+  const optionPool = { activitiesByDestination: {} };
+  for (const [destination, list] of Object.entries(attractionsByDest)) {
+    optionPool.activitiesByDestination[destination] = list
+      .filter((c) => !usedPlaceIds.has(c.placeId))
+      .slice(0, LIMITS.storedAlternatives * 2)
+      .map((c, k) => toActivity(c, { id: `pool-${destination}-${k + 1}` }));
+  }
+
+  return { segments, stays, days, sources, pool: optionPool };
 }
 
 /**

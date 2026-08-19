@@ -136,6 +136,21 @@ export const LIMITS = {
   storedAlternatives: 5,      // alternatives kept on each segment/stay for Semi mode
 };
 
+/**
+ * How a train's clock shapes the day it lands on. A 22:40 arrival is not a
+ * sightseeing day no matter what the itinerary says.
+ */
+export const DAY_RULES = {
+  arriveFullDayBefore: '11:00',   // in by then: a normal day
+  arriveTravelOnlyAfter: '19:00', // in after then: check in, maybe dinner
+  departLightDayBefore: '13:00',  // leaving before then: little time for anything
+  departNightAfter: '20:00',      // a night train: the whole day is still yours
+  // How many activities each shape of day can hold.
+  maxActivities: { full: 4, half: 2, light: 1, travel: 0 },
+  // A late arrival still allows something to eat near the hotel.
+  lateArrivalAllowsDinner: true,
+};
+
 // Deterministic graph layout, in pixels. Widen these if nodes ever crowd.
 export const GRAPH_LAYOUT = {
   spineX: 1250,   // gap between places on the main journey line

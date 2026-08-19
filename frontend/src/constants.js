@@ -23,11 +23,35 @@ export const THEME = {
   },
 };
 
-/**
- * 'light' | 'dark' | 'system'. Drives <ReactFlow colorMode>, which themes the
- * controls, minimap and background for us.
- */
+/** Default theme; the user's choice is remembered in localStorage. */
 export const COLOR_MODE = 'system';
+export const COLOR_MODE_STORAGE = 'travel-ai:colorMode';
+
+/** Canvas colours per theme — the custom renderer reads these directly. */
+export const CANVAS_THEME = {
+  light: {
+    background: '#fafafa',
+    dots: '#d4d4d8',
+    edge: '#a1a1aa',
+    edgeTransport: '#0284c7',
+    nodeBg: '#ffffff',
+    nodeBorder: '#e4e4e7',
+    text: '#18181b',
+    textMuted: '#71717a',
+    badgeBg: 'rgba(255,255,255,0.95)',
+  },
+  dark: {
+    background: '#09090b',
+    dots: '#27272a',
+    edge: '#52525b',
+    edgeTransport: '#0ea5e9',
+    nodeBg: '#18181b',
+    nodeBorder: '#27272a',
+    text: '#fafafa',
+    textMuted: '#a1a1aa',
+    badgeBg: 'rgba(24,24,27,0.95)',
+  },
+};
 
 /** One calm colour per node type — accent only, never a full fill. */
 export const NODE_COLORS = {
@@ -55,13 +79,16 @@ export const EXPORT = {
   pdfPageUnit: 'px',
 };
 
-/** Framing for the flow canvas on open — it used to load unreadably small. */
-export const GRAPH_VIEW = {
-  fitViewOptions: { padding: 0.15, minZoom: 0.4, maxZoom: 1.2 },
-  minZoom: 0.15,
-  maxZoom: 2,
-  minimapSize: { width: 200, height: 140 },
-  minimapStrokeWidth: 6,
+/** The custom canvas: sizing, zoom limits and how it frames on open. */
+export const CANVAS = {
+  nodeWidth: 224,
+  nodeHeight: 76,
+  minZoom: 0.25,
+  maxZoom: 1.8,
+  zoomStep: 0.0015,   // wheel delta -> zoom
+  fitPadding: 0.12,   // share of the viewport left as margin when fitting
+  fitMaxZoom: 1,      // never open zoomed *in* past natural size
+  dotGrid: 26,
 };
 
 export const BUDGET_TIERS = [

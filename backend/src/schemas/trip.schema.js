@@ -33,6 +33,8 @@ const segmentFields = {
   // nullish, not nullable: plans saved before dates existed have no key at all,
   // and they must keep validating.
   date: z.string().nullish().default(null).describe('YYYY-MM-DD the leg departs'),
+  departureTime: z.string().nullish().default(null).describe('HH:mm'),
+  arrivalTime: z.string().nullish().default(null).describe('HH:mm'),
   source: z.string(),
   timestamp: z.string(),
 };
@@ -88,6 +90,9 @@ export const DayPlan = z.object({
   dayNumber: z.number(),
   destination: z.string(),
   date: z.string().nullish().default(null).describe('YYYY-MM-DD'),
+  // How much of the day the trains left free, and why.
+  pace: z.enum(['full', 'half', 'light', 'travel']).nullish().default('full'),
+  anchorNote: z.string().nullish().default(null).describe('e.g. "Arrive Jaipur 06:10"'),
   activities: z.array(Activity),
 });
 
@@ -141,6 +146,14 @@ export const TripPlan = z.object({
   stays: z.array(AccommodationFull),
   days: z.array(DayPlan),
   sources: z.array(ResearchSource),
+  // Researched-but-unused options, kept so the budget sliders can re-fit the
+  // trip without going back out to any provider.
+  pool: z
+    .object({ activitiesByDestination: z.record(z.string(), z.array(Activity)).default({}) })
+    .nullish()
+    .default(null),
+  // Set when a slider moves the food target off the tier default.
+  budgetOverrides: z.object({ foodPerPersonPerDay: z.number().nullish() }).nullish().default(null),
   budget: BudgetBreakdown,
   graph: z.object({ nodes: z.array(GraphNode), edges: z.array(GraphEdge) }),
 });
@@ -163,6 +176,8 @@ const TripInputFields = z.object({
   interests: z.array(z.string()).default([]),
   accommodationPreference: z.enum(['hotel', 'hostel', 'homestay', 'budget', 'any']).default('any'),
   planningMode: z.enum(['auto', 'guided', 'semi']).default('auto'),
+  // Free text, treated as soft preferences only — never as instructions.
+  specialRequests: z.string().max(500).nullish().default(null),
 });
 
 /**

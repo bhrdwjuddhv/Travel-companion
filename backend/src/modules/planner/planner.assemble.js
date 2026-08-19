@@ -6,7 +6,14 @@ import { addDays } from '../../shared/dates.js';
 
 export const newId = (prefix) => `${prefix}-${randomUUID().slice(0, 8)}`;
 
-export const toSegment = (option, id, date = null) => ({ ...option, id, date: option.date ?? date, alternatives: [] });
+export const toSegment = (option, id, date = null) => ({
+  ...option,
+  id,
+  date: option.date ?? date,
+  departureTime: option.departureTime ?? null,
+  arrivalTime: option.arrivalTime ?? null,
+  alternatives: [],
+});
 
 export const toAccommodation = (candidate, { id, destination, nights }) => ({
   id,
