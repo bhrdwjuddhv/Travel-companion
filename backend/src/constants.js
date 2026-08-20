@@ -30,7 +30,7 @@ export const MODELS = {
   // plenty, and it's the difference between ~2s and ~20s.
   PLANNER_FAST: process.env.OPENAI_MODEL_FAST || 'gpt-4o-mini',
   EMBEDDING: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
-  GUARDRAIL: process.env.OPENAI_GUARDRAIL_MODEL || 'gpt-4-mini',
+  GUARDRAIL: process.env.OPENAI_GUARDRAIL_MODEL || 'gpt-4',
 };
 
 // Which provider handles each transport mode. Flip to real providers when approved.
