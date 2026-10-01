@@ -6,17 +6,11 @@ import HeroPrompt from './HeroPrompt';
 import DestinationBento from './DestinationBento';
 import { Section, SectionHeading, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
 import Reveal from '../../shared/Reveal';
-import { BACKDROP, FEATURES, LANDING, PLANNING_MODES } from '../../constants';
+import { BACKDROP, FEATURES, LANDING, PLANNING_MODES, SECTION_INTRO } from '../../constants';
 
-/**
- * The backdrop clip is bright, so hero text rides on its own translucent dark
- * pane. Tint and blur are tokens; the text colour is not touched.
- */
-const pane = (weight = 'base') => ({
-  background: weight === 'strong' ? BACKDROP.textPaneTintStrong : BACKDROP.textPaneTint,
-  backdropFilter: `blur(${BACKDROP.textPaneBlurPx}px)`,
-  WebkitBackdropFilter: `blur(${BACKDROP.textPaneBlurPx}px)`,
-});
+// Nothing boxes the hero in: the words sit on the footage and a shadow does
+// the legibility work.
+const onVideo = { textShadow: BACKDROP.heroTextShadow };
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -65,15 +59,15 @@ export default function Landing() {
         {/* Hero */}
         <section className="relative flex min-h-screen flex-col items-center justify-center px-6 py-28 text-center">
           <div ref={heroRef} className="ui-measure flex flex-col items-center">
-            <Reveal as="h1" className="ui-display max-w-4xl rounded-[var(--r-xl)] px-6 py-5" style={pane('strong')}>
+            <Reveal as="h1" className="ui-display max-w-4xl" style={onVideo}>
               <span className="block">{LANDING.hero.headline[0]}</span>
               <span className="block text-[var(--c-ink-dim)]">{LANDING.hero.headline[1]}</span>
             </Reveal>
 
             <Reveal
               delay={1}
-              className="mt-5 max-w-[620px] rounded-[var(--r-lg)] px-5 py-4 text-[length:var(--type-body)] leading-relaxed"
-              style={pane()}
+              className="mt-6 max-w-[620px] text-[length:var(--type-body)] leading-relaxed"
+              style={onVideo}
             >
               {LANDING.hero.paragraph.lead}
               <span className="text-[var(--c-ink-dim)]">{LANDING.hero.paragraph.muted}</span>
@@ -83,11 +77,7 @@ export default function Landing() {
               <HeroPrompt value={promptText} onChange={setPromptText} onExtracted={onExtracted} />
             </Reveal>
 
-            <Reveal
-              delay={3}
-              className="mt-8 flex items-center gap-2 rounded-[var(--r-pill)] px-4 py-2 text-[var(--c-ink-dim)]"
-              style={pane()}
-            >
+            <Reveal delay={3} className="mt-8 flex items-center gap-2 text-[var(--c-ink-dim)]" style={onVideo}>
               <Lock size={13} aria-hidden="true" />
               <span className="ui-eyebrow">{LANDING.hero.assurance}</span>
             </Reveal>
@@ -142,7 +132,14 @@ export default function Landing() {
         {/* Footer CTA */}
         <section className="relative z-10 px-6 py-16 md:px-10">
           <Reveal className="ui-measure">
-            <div className="ui-card">
+            <div
+              className="ui-card on-media"
+              style={{
+                background: SECTION_INTRO.tint,
+                backdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
+                WebkitBackdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
+              }}
+            >
               <div className="bg-gradient-to-b from-white/[0.07] to-transparent px-8 py-16 text-center md:px-16 md:py-24">
                 <h2 className="mx-auto max-w-3xl" style={{ fontSize: 'var(--type-h1)' }}>
                   {LANDING.footer.title}
@@ -158,7 +155,7 @@ export default function Landing() {
           </Reveal>
         </section>
 
-        <footer className="relative z-10 px-6 pb-12 md:px-10">
+        <footer className="on-media relative z-10 px-6 pb-12 md:px-10">
           <div className="ui-measure flex flex-wrap items-center justify-between gap-4 border-t border-[var(--c-border)] pt-8">
             <span className="text-[17px] font-semibold tracking-tight">
               {LANDING.productName}

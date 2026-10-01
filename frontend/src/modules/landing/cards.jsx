@@ -1,5 +1,15 @@
 import Reveal from '../../shared/Reveal';
-import { BENTO } from '../../constants';
+import { BENTO, SECTION_INTRO } from '../../constants';
+
+/**
+ * A dark pane so light text reads over the bright clip. The `on-media` class
+ * rebinds the ink variables, so everything inside turns light with it.
+ */
+const pane = (tint) => ({
+  background: tint,
+  backdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
+  WebkitBackdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
+});
 
 /** A full-height section that rides above the fixed backdrop. */
 export function Section({ children, id = undefined, className = '' }) {
@@ -11,7 +21,10 @@ export function Section({ children, id = undefined, className = '' }) {
 }
 
 export const SectionHeading = ({ eyebrow, title, subtitle, aside = null, className = '' }) => (
-  <Reveal className={`flex flex-wrap items-end justify-between gap-6 ${className}`}>
+  <Reveal
+    className={`on-media flex flex-wrap items-end justify-between gap-6 rounded-[var(--r-lg)] px-6 py-7 sm:px-8 ${className}`}
+    style={pane(SECTION_INTRO.tint)}
+  >
     <div className="flex flex-col gap-3">
       {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
       <h2 className="ui-h2">{title}</h2>
@@ -27,7 +40,9 @@ export const SectionHeading = ({ eyebrow, title, subtitle, aside = null, classNa
  */
 export const BentoTile = ({ size = 'sm', index = 0, className = '', children }) => (
   <Reveal delay={index} className={BENTO[size] ?? BENTO.sm}>
-    <div className={`ui-card flex h-full flex-col p-6 ${className}`}>{children}</div>
+    <div className={`ui-card on-media flex h-full flex-col p-6 ${className}`} style={pane(SECTION_INTRO.cardTint)}>
+      {children}
+    </div>
   </Reveal>
 );
 

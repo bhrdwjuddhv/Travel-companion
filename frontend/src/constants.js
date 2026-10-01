@@ -161,12 +161,9 @@ export const MOTION = {
 /** The fixed backdrop: one looping clip, blurred, under a scrim. */
 export const BACKDROP = {
   video: '/Red_bus_driving_mountain_road_video.mp4',
-  // The clip is bright, so the text rides on its own darker pane rather than
-  // relying on the page-wide scrim. Raise for more contrast, lower for more
-  // footage. The text colour never changes.
-  textPaneTint: 'rgba(6, 9, 15, 0.52)',
-  textPaneTintStrong: 'rgba(6, 9, 15, 0.62)',
-  textPaneBlurPx: 10,
+  // The hero sits straight on the footage — no panel. A shadow does the
+  // legibility work instead, so nothing boxes the words in.
+  heroTextShadow: '0 2px 18px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.4)',
   blurPx: 6,
   // A touch over 1 so the mouse parallax never exposes an edge.
   scale: 1.08,
@@ -244,10 +241,12 @@ export const CANVAS = {
   columnGap: 560,
   // How far below the place node its stay and days begin.
   spineGap: 190,
-  // One row per card inside a column.
-  rowGap: 124,
-  // Activities step in under their day, so the day owns them visually.
-  indent: 56,
+  // Each day is its own horizontal track, stacked down the page.
+  dayRowGap: 150,
+  // Where the day rows begin, clear of the journey row and its stays.
+  daysTop: 420,
+  // Between a day and its first stop, and between stops.
+  activityGap: 92,
   minZoom: 0.3,
   maxZoom: 2,
   zoomStep: 0.0015,   // wheel delta -> zoom
@@ -354,6 +353,18 @@ export const PLANNING_MODES = [
 ];
 
 /** Bento spans, used by every tiled section on the landing page. */
+/**
+ * Section intros sit on the bright clip, so they get their own dark pane and
+ * keep light text in both themes. Tune the tint here.
+ */
+export const SECTION_INTRO = {
+  tint: 'rgba(6, 9, 15, 0.62)',
+  // The tiles take a lighter version of the same tint: enough to hold white
+  // text, not so much that the clip stops showing through.
+  cardTint: 'rgba(6, 9, 15, 0.46)',
+  blurPx: 10,
+};
+
 export const BENTO = {
   lg: 'col-span-2 row-span-2',
   wide: 'col-span-2 row-span-1',

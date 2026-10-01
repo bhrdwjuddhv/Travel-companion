@@ -1,26 +1,35 @@
 import { CANVAS } from '../../constants';
 
-/**
- * Positions every node from the graph's own shape, ignoring whatever
- * coordinates the server stored. One column per place on the journey, one row
- * per card inside it, activities stepped in under their day.
- *
- * Because a column only ever grows downward, two columns can never collide —
- * which is what the old outward-growing layout could not promise once a
- * destination had more than a couple of stops.
- */
-export function layoutNodes(graph) {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-  const flow = graph.edges.filter((e) => e.type !== 'transport');
+const SPINE_TYPES = ['origin', 'destination', 'return'];
 
-  // Children, in the order the builder emitted them.
+/**
+ * Lays the trip out as a journey across the top and one track per day beneath
+ * it:
+ *
+ *   origin ──▶ Jaipur ──▶ Udaipur ──▶ home        (the intercity journey)
+ *                │           │
+ *              stay        stay                   (sleeping, under its city)
+ *
+ *   Day 1 ──▶ fort ──▶ bazaar ──▶ cafe            (one row per day, left to right)
+ *   Day 2 ──▶ lake ──▶ palace
+ *
+ * Days do not hang off their destination, which is what produced the branching
+ * tree and the crossing connectors; each day names its own city on the card
+ * instead. A day's row only grows to the right and rows never share a y, so no
+ * two cards can collide.
+ */
+export function layoutGraph(graph) {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const position = new Map();
+
   const childrenOf = new Map();
-  for (const e of flow) {
+  for (const e of graph.edges) {
+    if (e.type === 'transport') continue;
     if (!childrenOf.has(e.source)) childrenOf.set(e.source, []);
     childrenOf.get(e.source).push(e.target);
   }
 
-  // The spine: origin, then wherever each transport edge lands, in order.
+  /* ---- the journey, left to right across the top ---- */
   const spine = [];
   const seen = new Set();
   const start = graph.nodes.find((n) => n.type === 'origin');
@@ -33,55 +42,66 @@ export function layoutNodes(graph) {
     spine.push(e.target);
     seen.add(e.target);
   }
-  // A node the transport chain never reached still needs a column.
   for (const n of graph.nodes) {
-    if (['origin', 'destination', 'return'].includes(n.type) && !seen.has(n.id)) {
+    if (SPINE_TYPES.includes(n.type) && !seen.has(n.id)) {
       spine.push(n.id);
       seen.add(n.id);
     }
   }
 
-  const position = new Map();
-
-  spine.forEach((spineId, column) => {
+  spine.forEach((id, column) => {
     const x = column * CANVAS.columnGap;
-    position.set(spineId, { x, y: 0 });
-
-    let y = CANVAS.spineGap;
-    const place = (id, indent = 0) => {
-      position.set(id, { x: x + indent, y });
-      y += CANVAS.rowGap;
-    };
-
-    for (const childId of childrenOf.get(spineId) ?? []) {
-      const child = byId.get(childId);
-      if (!child) continue;
-      place(childId);
-
-      if (child.type !== 'day') continue;
-      // An activity chain hangs off its day: day -> a1 -> a2 -> …
-      let cursor = childId;
-      const guard = new Set([childId]);
-      for (;;) {
-        const next = (childrenOf.get(cursor) ?? []).find((id) => byId.get(id)?.type === 'activity' && !guard.has(id));
-        if (!next) break;
-        guard.add(next);
-        place(next, CANVAS.indent);
-        cursor = next;
-      }
+    position.set(id, { x, y: 0 });
+    // The stay sits directly under the city it belongs to.
+    for (const childId of childrenOf.get(id) ?? []) {
+      if (byId.get(childId)?.type === 'stay') position.set(childId, { x, y: CANVAS.spineGap });
     }
   });
 
-  // Anything the walk missed (shouldn't happen) is parked in a last column so
-  // it is visible rather than stacked at the origin.
-  let orphanRow = 0;
-  return graph.nodes.map((n) => {
+  /* ---- one row per day, activities running right ---- */
+  const days = graph.nodes.filter((n) => n.type === 'day');
+  const dayStep = CANVAS.nodeWidth + CANVAS.activityGap;
+
+  days.forEach((day, row) => {
+    const y = CANVAS.daysTop + row * CANVAS.dayRowGap;
+    position.set(day.id, { x: 0, y });
+
+    // The activity chain for this day: day -> a1 -> a2 -> …
+    let cursor = day.id;
+    let column = 1;
+    const guard = new Set([day.id]);
+    for (;;) {
+      const next = (childrenOf.get(cursor) ?? []).find(
+        (id) => byId.get(id)?.type === 'activity' && !guard.has(id)
+      );
+      if (!next) break;
+      guard.add(next);
+      position.set(next, { x: column * dayStep, y });
+      cursor = next;
+      column += 1;
+    }
+  });
+
+  // Anything the walk never reached still has to be visible somewhere.
+  let orphan = 0;
+  const nodes = graph.nodes.map((n) => {
     const at = position.get(n.id) ?? {
-      x: spine.length * CANVAS.columnGap,
-      y: (orphanRow++) * CANVAS.rowGap,
+      x: 0,
+      y: CANVAS.daysTop + (days.length + orphan++) * CANVAS.dayRowGap,
     };
     return { ...n, position: at };
   });
+
+  /**
+   * A city-to-day connector would have to cut across every row to reach the
+   * left column, which is the branching this layout exists to remove. The day
+   * card carries its destination, so the line is redundant.
+   */
+  const edges = graph.edges.filter(
+    (e) => !(byId.get(e.target)?.type === 'day' && SPINE_TYPES.includes(byId.get(e.source)?.type))
+  );
+
+  return { nodes, edges };
 }
 
 /**

@@ -3,7 +3,7 @@ import { Maximize2, Minus, Plus } from 'lucide-react';
 import { CANVAS, CANVAS_THEME, NODE_COLORS } from '../../constants';
 import { useColorMode } from '../../shared/theme';
 import TripNode from './nodes/TripNode.jsx';
-import { bounds, edgeGeometry, layoutNodes } from './layout';
+import { bounds, edgeGeometry, layoutGraph } from './layout';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -25,7 +25,8 @@ export default function TripCanvas({ plan, semi = null, onEdit = null }) {
   const fitted = useRef(false);
   const pan = useRef(null);
 
-  const nodes = useMemo(() => layoutNodes(plan.graph), [plan]);
+  // The layout also decides which connectors still make sense to draw.
+  const { nodes, edges } = useMemo(() => layoutGraph(plan.graph), [plan]);
   const byId = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
 
   const hiddenNodes = useMemo(() => {
@@ -37,7 +38,7 @@ export default function TripCanvas({ plan, semi = null, onEdit = null }) {
   }, [plan, collapsedDays]);
 
   const visibleNodes = nodes.filter((n) => !hiddenNodes.isHidden(n.id));
-  const visibleEdges = plan.graph.edges.filter(
+  const visibleEdges = edges.filter(
     (e) => byId[e.source] && byId[e.target] && !hiddenNodes.isHidden(e.target) && !hiddenNodes.isHidden(e.source)
   );
 

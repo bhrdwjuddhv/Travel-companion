@@ -344,6 +344,19 @@ p {
   background: var(--c-surface-hover);
 }
 
+/**
+ * Anything sitting on the backdrop clip rather than on the page. It rebinds
+ * the ink variables rather than setting colours, so every descendant that
+ * already reads --c-ink / --c-ink-dim (prose, eyebrows, bullets) turns light
+ * on its own, in either theme.
+ */
+.on-media {
+  --c-ink: var(--c-on-media);
+  --c-ink-muted: var(--c-on-media-muted);
+  --c-ink-dim: var(--c-on-media-muted);
+  color: var(--c-ink);
+}
+
 .ui-section {
   padding-block: var(--sp-section-y);
   padding-inline: var(--sp-gutter);
