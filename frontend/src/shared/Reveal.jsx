@@ -7,7 +7,7 @@ import { MOTION } from '../constants';
  * so if the observer never runs — headless render, old browser, script error —
  * the content is simply visible instead of invisible forever.
  */
-export default function Reveal({ as: Tag = 'div', delay = 0, className = '', children, ...rest }) {
+export default function Reveal({ as: Tag = 'div', delay = 0, className = '', style, children, ...rest }) {
   const ref = useRef(null);
 
   // Layout effect, not an effect: hiding after the browser has painted would
@@ -33,7 +33,13 @@ export default function Reveal({ as: Tag = 'div', delay = 0, className = '', chi
   }, []);
 
   return (
-    <Tag ref={ref} data-reveal="in" className={className} style={{ '--reveal-delay': `${delay * MOTION.staggerMs}ms` }} {...rest}>
+    <Tag
+      ref={ref}
+      data-reveal="in"
+      className={className}
+      style={{ '--reveal-delay': `${delay * MOTION.staggerMs}ms`, ...style }}
+      {...rest}
+    >
       {children}
     </Tag>
   );

@@ -144,8 +144,16 @@ export async function generateTrip({ input, ownerKey, emit }) {
     )
   );
 
-  // Geocoding is only for disambiguation here, so a failure is not fatal.
-  const geocodeJob = Promise.allSettled([input.origin, ...destinations].map((p) => resolveLocation(p)));
+  // Geocoding disambiguates the names, and its coordinates are what the map
+  // later draws from — so keep them. A failure is still not fatal.
+  const placeCoords = {};
+  const geocodeJob = Promise.allSettled(
+    [input.origin, ...destinations].map((place) =>
+      resolveLocation(place).then((hit) => {
+        placeCoords[place] = { lat: hit.lat, lng: hit.lng };
+      })
+    )
+  );
 
   // The slowest thing in the pipeline runs alongside all of it, not after.
   log.info('▶ hidden gems (background)');
@@ -169,6 +177,7 @@ export async function generateTrip({ input, ownerKey, emit }) {
   // ---- 4. Assemble deterministically from the model's choices ----
   const assemble = log.start('assemble');
   const draft = await assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection, dates });
+  draft.placeCoords = placeCoords;
   assemble.done();
 
   const budgetStage = log.start('budget');
@@ -365,7 +374,9 @@ async function patchHiddenGems({ tripId, ownerKey, input, plan, version, gemsJob
 
   // ponytail: no local hop computed for a gem — it is appended to the end of a
   // day, and a wrong fare is worse than none.
-  const next = withComputed({ segments: draft.segments, stays: draft.stays, days: draft.days, sources: draft.sources }, input);
+  // Spread the draft rather than listing fields: this used to drop the option
+  // pool (and would now drop placeCoords) every time gems landed.
+  const next = withComputed(draft, input);
 
   try {
     const saved = await appendVersion({ tripId, ownerKey, expectedVersion: version, plan: next });

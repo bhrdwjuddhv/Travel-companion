@@ -3,49 +3,29 @@ import { Maximize2, Minus, Plus } from 'lucide-react';
 import { CANVAS, CANVAS_THEME, NODE_COLORS } from '../../constants';
 import { useColorMode } from '../../shared/theme';
 import TripNode from './nodes/TripNode.jsx';
+import { bounds, edgeGeometry, layoutNodes } from './layout';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-/** Anchor points: edges leave a card's right edge and arrive at its left. */
-const anchors = (from, to) => ({
-  x1: from.position.x + CANVAS.nodeWidth,
-  y1: from.position.y + CANVAS.nodeHeight / 2,
-  x2: to.position.x,
-  y2: to.position.y + CANVAS.nodeHeight / 2,
-});
-
-/** A horizontal cubic — reads as a flow without the corners of an orthogonal path. */
-function edgePath(from, to) {
-  const { x1, y1, x2, y2 } = anchors(from, to);
-  const bend = Math.max(40, Math.abs(x2 - x1) * 0.4);
-  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
-}
-
 /**
- * A small purpose-built canvas: HTML cards for nodes, one SVG layer behind them
- * for edges. Both live in the same transformed container, so a dragged node and
- * its edges can never drift apart.
+ * A small purpose-built canvas: HTML cards for nodes, one SVG layer behind
+ * them for edges, both inside the same transformed container.
+ *
+ * Node positions are computed, never stored and never dragged — the diagram
+ * reads the same way every time it is opened.
  */
-export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutChange = null }) {
+export default function TripCanvas({ plan, semi = null, onEdit = null }) {
   const mode = useColorMode();
   const palette = CANVAS_THEME[mode] ?? CANVAS_THEME.dark;
 
   const viewportRef = useRef(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
-  const [dragged, setDragged] = useState({});     // nodeId -> {x, y} while dragging
   const [collapsedDays, setCollapsedDays] = useState(() => new Set());
   const [panning, setPanning] = useState(false);
   const fitted = useRef(false);
+  const pan = useRef(null);
 
-  const pan = useRef(null);   // {startX, startY, originX, originY}
-  const nodeDrag = useRef(null);
-
-  // Positions come from the deterministic layout, overridden by any drag.
-  const nodes = useMemo(
-    () => plan.graph.nodes.map((n) => (dragged[n.id] ? { ...n, position: dragged[n.id] } : n)),
-    [plan, dragged]
-  );
-
+  const nodes = useMemo(() => layoutNodes(plan.graph), [plan]);
   const byId = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
 
   const hiddenNodes = useMemo(() => {
@@ -61,27 +41,24 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
     (e) => byId[e.source] && byId[e.target] && !hiddenNodes.isHidden(e.target) && !hiddenNodes.isHidden(e.source)
   );
 
-  /** Frames the whole trip in the viewport — the canvas must open readable. */
+  /** Frames the whole trip, but never so far out that the labels go unreadable. */
   const fit = useCallback(() => {
     const el = viewportRef.current;
     if (!el || !nodes.length) return;
-    const xs = nodes.map((n) => n.position.x);
-    const ys = nodes.map((n) => n.position.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const width = Math.max(...xs) + CANVAS.nodeWidth - minX;
-    const height = Math.max(...ys) + CANVAS.nodeHeight - minY;
+    const { minX, minY, width, height } = bounds(nodes);
 
     const pad = 1 - CANVAS.fitPadding;
     const zoom = clamp(
       Math.min((el.clientWidth * pad) / width, (el.clientHeight * pad) / height),
-      CANVAS.minZoom,
+      CANVAS.fitMinZoom,
       CANVAS.fitMaxZoom
     );
     setView({
       zoom,
       x: (el.clientWidth - width * zoom) / 2 - minX * zoom,
-      y: (el.clientHeight - height * zoom) / 2 - minY * zoom,
+      // A trip taller than the viewport starts at the top rather than centred
+      // on its middle, which would hide the origin.
+      y: height * zoom > el.clientHeight ? 40 : (el.clientHeight - height * zoom) / 2 - minY * zoom,
     });
   }, [nodes]);
 
@@ -123,47 +100,21 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
 
   /* ---- pointer events cover mouse, pen and touch in one path ---- */
 
-  const onPointerDownCanvas = (e) => {
-    if (e.target.closest('[data-node]')) return; // node drag handles its own
+  const onPointerDown = (e) => {
+    // Cards are fixed in place now, so every drag on the canvas is a pan.
+    if (e.target.closest('[data-interactive]')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pan.current = { startX: e.clientX, startY: e.clientY, originX: view.x, originY: view.y };
     setPanning(true);
   };
 
-  const startNodeDrag = (nodeId) => (e) => {
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const node = byId[nodeId];
-    nodeDrag.current = {
-      nodeId,
-      startX: e.clientX,
-      startY: e.clientY,
-      originX: node.position.x,
-      originY: node.position.y,
-      moved: false,
-    };
-  };
-
   const onPointerMove = (e) => {
-    if (nodeDrag.current) {
-      const d = nodeDrag.current;
-      const dx = (e.clientX - d.startX) / view.zoom;
-      const dy = (e.clientY - d.startY) / view.zoom;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) d.moved = true;
-      setDragged((prev) => ({ ...prev, [d.nodeId]: { x: d.originX + dx, y: d.originY + dy } }));
-      return;
-    }
-    if (pan.current) {
-      const p = pan.current;
-      setView((v) => ({ ...v, x: p.originX + (e.clientX - p.startX), y: p.originY + (e.clientY - p.startY) }));
-    }
+    const p = pan.current;
+    if (!p) return;
+    setView((v) => ({ ...v, x: p.originX + (e.clientX - p.startX), y: p.originY + (e.clientY - p.startY) }));
   };
 
   const onPointerUp = () => {
-    const d = nodeDrag.current;
-    // Only persist a real move — a click that wobbled two pixels isn't one.
-    if (d?.moved) onLayoutChange?.(d.nodeId, dragged[d.nodeId] ?? byId[d.nodeId].position);
-    nodeDrag.current = null;
     pan.current = null;
     setPanning(false);
   };
@@ -188,7 +139,7 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
   return (
     <div
       ref={viewportRef}
-      onPointerDown={onPointerDownCanvas}
+      onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -207,19 +158,43 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
       >
         {/* Edges sit behind the cards, in the same transformed space. */}
         <svg className="pointer-events-none absolute overflow-visible" style={{ width: 1, height: 1 }}>
+          <defs>
+            {[
+              ['arrow-transport', palette.edgeTransport],
+              ['arrow-flow', palette.edge],
+              ['arrow-origin', NODE_COLORS.origin],
+            ].map(([id, colour]) => (
+              <marker
+                key={id}
+                id={id}
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth={CANVAS.arrowSize}
+                markerHeight={CANVAS.arrowSize}
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 1 L 9 5 L 0 9 z" fill={colour} />
+              </marker>
+            ))}
+          </defs>
+
           {visibleEdges.map((e) => {
             const transport = e.type === 'transport';
             const fromOrigin = e.source === 'origin';
+            const colour = fromOrigin ? NODE_COLORS.origin : transport ? palette.edgeTransport : palette.edge;
+            const marker = fromOrigin ? 'arrow-origin' : transport ? 'arrow-transport' : 'arrow-flow';
             return (
               <path
                 key={e.id}
-                d={edgePath(byId[e.source], byId[e.target])}
+                d={edgeGeometry(byId[e.source], byId[e.target]).d}
                 fill="none"
-                stroke={fromOrigin ? NODE_COLORS.origin : transport ? palette.edgeTransport : palette.edge}
-                strokeWidth={transport ? 2 : 1.25}
-                strokeDasharray={e.type === 'local' ? '5 5' : undefined}
-                strokeLinecap="round"
-                opacity={transport ? 0.95 : 0.55}
+                stroke={colour}
+                strokeWidth={transport ? CANVAS.edgeWidthTransport : CANVAS.edgeWidth}
+                strokeDasharray={e.type === 'local' ? '6 6' : undefined}
+                strokeLinejoin="round"
+                markerEnd={`url(#${marker})`}
+                opacity={transport ? 1 : 0.7}
               />
             );
           })}
@@ -228,14 +203,15 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
         {/* Edge labels ride above the lines but below the cards. */}
         {visibleEdges.map((e) => {
           if (!e.label) return null;
-          const { x1, y1, x2, y2 } = anchors(byId[e.source], byId[e.target]);
+          const { mid } = edgeGeometry(byId[e.source], byId[e.target]);
           return (
             <span
               key={`label-${e.id}`}
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-pill)] border px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-pill)] border px-3 py-1 font-medium"
               style={{
-                left: (x1 + x2) / 2,
-                top: (y1 + y2) / 2,
+                left: mid.x,
+                top: mid.y,
+                fontSize: CANVAS.type.badge,
                 background: palette.badgeBg,
                 borderColor: e.type === 'transport' ? palette.edgeTransport : palette.nodeBorder,
                 color: palette.text,
@@ -259,7 +235,6 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
             collapsed={collapsedDays.has(n.id)}
             onToggleCollapse={() => toggleDay(n.id)}
             onEdit={onEdit}
-            onPointerDown={startNodeDrag(n.id)}
           />
         ))}
       </div>
@@ -268,9 +243,9 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
         className="absolute bottom-4 right-4 flex flex-col overflow-hidden rounded-[var(--r-md)] border shadow-sm"
         style={{ borderColor: palette.nodeBorder, background: palette.nodeBg }}
       >
-        <CanvasButton onClick={() => zoomBy(1.2)} title="Zoom in" palette={palette}><Plus size={14} /></CanvasButton>
-        <CanvasButton onClick={() => zoomBy(1 / 1.2)} title="Zoom out" palette={palette}><Minus size={14} /></CanvasButton>
-        <CanvasButton onClick={fit} title="Fit to screen" palette={palette}><Maximize2 size={14} /></CanvasButton>
+        <CanvasButton onClick={() => zoomBy(1.2)} title="Zoom in" palette={palette}><Plus size={16} /></CanvasButton>
+        <CanvasButton onClick={() => zoomBy(1 / 1.2)} title="Zoom out" palette={palette}><Minus size={16} /></CanvasButton>
+        <CanvasButton onClick={fit} title="Fit to screen" palette={palette}><Maximize2 size={16} /></CanvasButton>
       </div>
     </div>
   );
@@ -281,8 +256,8 @@ const CanvasButton = ({ onClick, title, palette, children }) => (
     onClick={onClick}
     title={title}
     aria-label={title}
-    onPointerDown={(e) => e.stopPropagation()}
-    className="grid h-9 w-9 place-items-center border-b transition last:border-b-0 hover:opacity-70"
+    data-interactive
+    className="grid h-10 w-10 place-items-center border-b transition last:border-b-0 hover:opacity-70"
     style={{ borderColor: palette.nodeBorder, color: palette.textMuted }}
   >
     {children}

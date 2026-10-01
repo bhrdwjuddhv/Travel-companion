@@ -161,6 +161,12 @@ export const MOTION = {
 /** The fixed backdrop: one looping clip, blurred, under a scrim. */
 export const BACKDROP = {
   video: '/Red_bus_driving_mountain_road_video.mp4',
+  // The clip is bright, so the text rides on its own darker pane rather than
+  // relying on the page-wide scrim. Raise for more contrast, lower for more
+  // footage. The text colour never changes.
+  textPaneTint: 'rgba(6, 9, 15, 0.52)',
+  textPaneTintStrong: 'rgba(6, 9, 15, 0.62)',
+  textPaneBlurPx: 10,
   blurPx: 6,
   // A touch over 1 so the mouse parallax never exposes an edge.
   scale: 1.08,
@@ -225,16 +231,68 @@ export const EXPORT = {
   pdfPageUnit: 'px',
 };
 
-/** The custom canvas: sizing, zoom limits and how it frames on open. */
+/**
+ * The custom canvas. Positions are computed on the client from these numbers
+ * (see modules/graph/layout.js), so the diagram is the same shape for every
+ * plan ever saved, and nothing can be dragged out of place.
+ */
 export const CANVAS = {
-  nodeWidth: 224,
-  nodeHeight: 76,
-  minZoom: 0.25,
-  maxZoom: 1.8,
+  nodeWidth: 296,
+  nodeHeight: 96,
+  // One column per place on the journey. Wide enough that a column's indented
+  // activities can never reach the next column.
+  columnGap: 560,
+  // How far below the place node its stay and days begin.
+  spineGap: 190,
+  // One row per card inside a column.
+  rowGap: 124,
+  // Activities step in under their day, so the day owns them visually.
+  indent: 56,
+  minZoom: 0.3,
+  maxZoom: 2,
   zoomStep: 0.0015,   // wheel delta -> zoom
-  fitPadding: 0.12,   // share of the viewport left as margin when fitting
+  fitPadding: 0.1,    // share of the viewport left as margin when fitting
   fitMaxZoom: 1,      // never open zoomed *in* past natural size
-  dotGrid: 26,
+  // ...and never open so far out that the labels stop being readable. A big
+  // trip opens partly off-screen instead, which pans.
+  fitMinZoom: 0.62,
+  dotGrid: 30,
+  arrowSize: 7,
+  edgeWidth: 1.5,
+  edgeWidthTransport: 2.25,
+  type: {
+    title: '15px',
+    meta: '13px',
+    detail: '12px',
+    badge: '12px',
+  },
+};
+
+/**
+ * Map view. OpenStreetMap tiles need no key and cost nothing; everything
+ * plotted comes from coordinates already stored on the plan.
+ */
+export const MAP = {
+  tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 18,
+  // Only used when a plan has no usable coordinates at all.
+  fallbackCenter: [22.9734, 78.6569],
+  fallbackZoom: 5,
+  fitPadding: [48, 48],
+  fitMaxZoom: 13,
+  markerSize: 30,       // big enough to tap on a phone
+  markerSizeSmall: 24,
+  lineWidth: 2.5,
+  lineDash: '6 8',
+  colors: {
+    origin: '#E6EDF3',
+    stay: '#B49BE8',
+    activity: '#E29A86',
+    gem: '#E8CE7F',
+    line: '#8FA3BF',
+    lineIntercity: '#7FC4E8',
+  },
 };
 
 export const BUDGET_TIERS = [
@@ -343,9 +401,9 @@ export const LANDING = {
     items: [
       { name: 'Jaipur', region: 'Rajasthan', tag: 'Forts', image: '/destinations/jaipur.jpg', size: 'lg',
         prompt: '4 days in Jaipur from Delhi, 2 of us, forts and street food' },
-      { name: 'Goa', region: 'West coast', tag: 'Beaches', image: '/destinations/goa.webp', size: 'sm',
+      { name: 'Goa', region: 'West coast', tag: 'Beaches', image: '/destinations/goa.webp', size: 'tall',
         prompt: '4 days in Goa from Mumbai, beaches and seafood, comfortable' },
-      { name: 'Kerala', region: 'Backwaters', tag: 'Slow', image: '/destinations/kerala.webp', size: 'sm',
+      { name: 'Kerala', region: 'Backwaters', tag: 'Slow', image: '/destinations/kerala.webp', size: 'tall',
         prompt: '6 days in Kerala from Bangalore, backwaters and food, no night travel' },
       { name: 'Leh-Ladakh', region: 'Union territory', tag: 'Altitude', image: '/destinations/leh-ladakh.webp', size: 'wide',
         prompt: '8 days in Leh from Delhi, monasteries and high passes, premium' },
@@ -361,8 +419,8 @@ export const LANDING = {
       { title: 'Edit by chat', body: 'Point at any node and say what to change. Only that part recalculates.', size: 'sm' },
       { title: 'Budget by arithmetic', body: 'Transport, stays, food and local travel added up by code, not guessed by a model.', size: 'sm' },
       { title: 'Every way to get there', body: 'Trains from live rail data, plus bus, flight and car — scored on price, time and your preference.', size: 'wide' },
-      { title: 'Hidden gems', body: 'Web research surfaces the places that never make the top-ten lists.', size: 'sm' },
-      { title: 'Take it with you', body: 'A day-by-day calendar, a PDF, or straight into your own calendar app.', size: 'sm' },
+      { title: 'Hidden gems', body: 'Web research surfaces the places that never make the top-ten lists.', size: 'wide' },
+      { title: 'Take it with you', body: 'A day-by-day calendar, a map, a PDF, or straight into your own calendar app.', size: 'wide' },
     ],
   },
   modes: {

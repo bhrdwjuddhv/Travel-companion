@@ -65,7 +65,7 @@ function describe(node, inboundSegment) {
 }
 
 export default function TripNode({
-  node, palette, accent, semi, inboundSegment, days, activityCount, collapsed, onToggleCollapse, onEdit, onPointerDown,
+  node, palette, accent, semi, inboundSegment, days, activityCount, collapsed, onToggleCollapse, onEdit,
 }) {
   const [hover, setHover] = useState(false);
   const [open, setOpen] = useState(false);
@@ -82,10 +82,9 @@ export default function TripNode({
   return (
     <div
       data-node
-      onPointerDown={onPointerDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="node-grow absolute cursor-grab select-none border shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
+      className="node-grow absolute select-none border shadow-sm transition-shadow hover:shadow-md"
       style={{
         left: node.position.x,
         top: node.position.y,
@@ -98,19 +97,23 @@ export default function TripNode({
         animationDelay: `${node.data?.growDelayMs ?? 0}ms`,
       }}
     >
-      <div className="flex items-start gap-2.5 px-3 py-2.5">
+      <div className="flex items-start gap-3 px-4 py-3.5">
         <span
-          className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-[var(--r-sm)]"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-sm)]"
           style={{ background: `color-mix(in oklab, ${colour} 16%, transparent)`, color: colour }}
         >
-          <Icon size={14} strokeWidth={2} />
+          <Icon size={17} strokeWidth={2} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium" style={{ color: palette.text }} title={title}>
+          <p
+            className="truncate font-medium"
+            style={{ color: palette.text, fontSize: CANVAS.type.title }}
+            title={title}
+          >
             {title}
           </p>
           {meta && (
-            <p className="mt-0.5 truncate text-[11px]" style={{ color: palette.textMuted }}>
+            <p className="mt-1 truncate" style={{ color: palette.textMuted, fontSize: CANVAS.type.meta }}>
               {meta}
             </p>
           )}
@@ -119,8 +122,15 @@ export default function TripNode({
 
       {/* Detail is opt-in, so the resting card stays one line of meta. */}
       {open && (detail || segmentAlternatives || stayAlternatives) && (
-        <div className="border-t px-3 py-2" style={{ borderColor: palette.nodeBorder }} onPointerDown={stop}>
-          {detail && <p className="text-[11px]" style={{ color: palette.textMuted }}>{detail}</p>}
+        <div
+          data-interactive
+          className="border-t px-4 py-3"
+          style={{ borderColor: palette.nodeBorder }}
+          onPointerDown={stop}
+        >
+          {detail && (
+            <p style={{ color: palette.textMuted, fontSize: CANVAS.type.detail }}>{detail}</p>
+          )}
 
           {segmentAlternatives && (
             <Picker
@@ -151,7 +161,8 @@ export default function TripNode({
                 onClick={() => semi.onRemoveActivity(node.data.id)}
                 title="Remove"
                 aria-label="Remove this stop"
-                className="mt-2 grid h-7 w-7 shrink-0 place-items-center rounded-[var(--r-sm)] border"
+                data-interactive
+                className="mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-sm)] border"
                 style={{ borderColor: palette.nodeBorder, color: palette.textMuted }}
               >
                 <X size={12} />
@@ -165,8 +176,9 @@ export default function TripNode({
         <button
           onPointerDown={stop}
           onClick={onToggleCollapse}
-          className="flex w-full items-center gap-1 border-t px-3 py-1.5 text-[11px] transition hover:opacity-70"
-          style={{ borderColor: palette.nodeBorder, color: palette.textMuted }}
+          data-interactive
+          className="flex w-full items-center gap-1.5 border-t px-4 py-2 transition hover:opacity-70"
+          style={{ borderColor: palette.nodeBorder, color: palette.textMuted, fontSize: CANVAS.type.detail }}
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           {collapsed ? `Show ${activityCount} stops` : 'Hide stops'}
@@ -175,13 +187,14 @@ export default function TripNode({
 
       {/* Two separate affordances: open the place, or edit it. */}
       <div
-        className="absolute right-1.5 top-1.5 flex gap-1 transition-opacity"
+        data-interactive
+        className="absolute right-2 top-2 flex gap-1.5 transition-opacity"
         style={{ opacity: hover || open ? 1 : 0 }}
         onPointerDown={stop}
       >
         {place?.name && (
           <IconButton palette={palette} title="Open in Google Maps" onClick={() => openInMaps(place)}>
-            <ExternalLink size={12} />
+            <ExternalLink size={13} />
           </IconButton>
         )}
         {(detail || segmentAlternatives || stayAlternatives || (semi && node.type === 'activity')) && (
@@ -211,7 +224,8 @@ const IconButton = ({ palette, title, onClick, children }) => (
       e.stopPropagation();
       onClick();
     }}
-    className="grid h-6 w-6 place-items-center rounded-[var(--r-sm)] border transition hover:opacity-70"
+    data-interactive
+    className="grid h-7 w-7 place-items-center rounded-[var(--r-sm)] border transition hover:opacity-70"
     style={{ borderColor: palette.nodeBorder, background: palette.nodeBg, color: palette.textMuted }}
   >
     {children}
@@ -223,8 +237,9 @@ const Picker = ({ palette, placeholder, options, onPick }) => (
     value=""
     onChange={(e) => e.target.value !== '' && onPick(Number(e.target.value))}
     onPointerDown={(e) => e.stopPropagation()}
-    className="mt-2 w-full rounded-[var(--r-sm)] border px-2 py-1.5 text-[11px] outline-none"
-    style={{ borderColor: palette.nodeBorder, background: palette.nodeBg, color: palette.text }}
+    data-interactive
+    className="mt-2 w-full rounded-[var(--r-sm)] border px-2.5 py-2 outline-none"
+    style={{ borderColor: palette.nodeBorder, background: palette.nodeBg, color: palette.text, fontSize: CANVAS.type.detail }}
   >
     <option value="">{placeholder}</option>
     {options.map((label, i) => (

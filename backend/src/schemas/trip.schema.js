@@ -50,6 +50,10 @@ const accommodationFields = {
   pricePerNight: z.number(),
   priceType: PriceType,
   nights: z.number(),
+  // Stored at generation time so the map can draw without looking anything
+  // up. nullish, not nullable: plans saved before the map existed have no key.
+  lat: z.number().nullish().default(null),
+  lng: z.number().nullish().default(null),
   distanceToKeyPlacesKm: z.number().nullable(),
   source: z.string(),
   timestamp: z.string(),
@@ -79,6 +83,8 @@ export const Activity = z.object({
   ticketCost: z.number().nullable().describe('per person, INR, 0 if free'),
   costType: PriceType.nullable(),
   isHiddenGem: z.boolean().nullable(),
+  lat: z.number().nullish().default(null),
+  lng: z.number().nullish().default(null),
   localTransportFromPrev: LocalTransport.nullable(),
   notes: z.string().nullable(),
   source: z.string(),
@@ -150,6 +156,12 @@ export const TripPlan = z.object({
   // trip without going back out to any provider.
   pool: z
     .object({ activitiesByDestination: z.record(z.string(), z.array(Activity)).default({}) })
+    .nullish()
+    .default(null),
+  // Where the named places actually are, so the map needs no geocoding of
+  // its own. Keyed by the place name exactly as the segments spell it.
+  placeCoords: z
+    .record(z.string(), z.object({ lat: z.number(), lng: z.number() }))
     .nullish()
     .default(null),
   // Set when a slider moves the food target off the tier default.

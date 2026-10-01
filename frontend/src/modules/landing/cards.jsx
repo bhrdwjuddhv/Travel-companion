@@ -41,7 +41,7 @@ export const FeatureTile = ({ title, body, size, index }) => (
 );
 
 export const ModeTile = ({ mode, index }) => (
-  <BentoTile size="sm" index={index}>
+  <BentoTile size={index === 0 ? 'lg' : 'tall'} index={index}>
     <div className="flex items-baseline justify-between gap-3">
       <h3 className="text-[length:var(--type-h3)] font-medium" style={{ fontFamily: 'var(--type-display-family)' }}>
         {mode.name}
@@ -65,7 +65,7 @@ export const ModeTile = ({ mode, index }) => (
  * planned — so this is the one place a number carries information.
  */
 export const StepTile = ({ index, title, body }) => (
-  <BentoTile size="sm" index={index}>
+  <BentoTile size={index === 0 ? 'wide' : 'sm'} index={index}>
     <span
       className="grid h-8 w-8 place-items-center rounded-full text-[length:var(--type-small)] font-medium"
       style={{ background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }}

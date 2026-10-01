@@ -4,9 +4,19 @@ import { Lock } from 'lucide-react';
 import VideoBackdrop from './VideoBackdrop';
 import HeroPrompt from './HeroPrompt';
 import DestinationBento from './DestinationBento';
-import { Section, SectionHeading, BentoTile, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
+import { Section, SectionHeading, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
 import Reveal from '../../shared/Reveal';
-import { FEATURES, LANDING, PLANNING_MODES } from '../../constants';
+import { BACKDROP, FEATURES, LANDING, PLANNING_MODES } from '../../constants';
+
+/**
+ * The backdrop clip is bright, so hero text rides on its own translucent dark
+ * pane. Tint and blur are tokens; the text colour is not touched.
+ */
+const pane = (weight = 'base') => ({
+  background: weight === 'strong' ? BACKDROP.textPaneTintStrong : BACKDROP.textPaneTint,
+  backdropFilter: `blur(${BACKDROP.textPaneBlurPx}px)`,
+  WebkitBackdropFilter: `blur(${BACKDROP.textPaneBlurPx}px)`,
+});
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -55,12 +65,16 @@ export default function Landing() {
         {/* Hero */}
         <section className="relative flex min-h-screen flex-col items-center justify-center px-6 py-28 text-center">
           <div ref={heroRef} className="ui-measure flex flex-col items-center">
-            <Reveal as="h1" className="ui-display max-w-4xl">
+            <Reveal as="h1" className="ui-display max-w-4xl rounded-[var(--r-xl)] px-6 py-5" style={pane('strong')}>
               <span className="block">{LANDING.hero.headline[0]}</span>
               <span className="block text-[var(--c-ink-dim)]">{LANDING.hero.headline[1]}</span>
             </Reveal>
 
-            <Reveal delay={1} className="mt-7 max-w-[620px] text-[length:var(--type-body)] leading-relaxed">
+            <Reveal
+              delay={1}
+              className="mt-5 max-w-[620px] rounded-[var(--r-lg)] px-5 py-4 text-[length:var(--type-body)] leading-relaxed"
+              style={pane()}
+            >
               {LANDING.hero.paragraph.lead}
               <span className="text-[var(--c-ink-dim)]">{LANDING.hero.paragraph.muted}</span>
             </Reveal>
@@ -69,7 +83,11 @@ export default function Landing() {
               <HeroPrompt value={promptText} onChange={setPromptText} onExtracted={onExtracted} />
             </Reveal>
 
-            <Reveal delay={3} className="mt-8 flex items-center gap-2 text-[var(--c-ink-dim)]">
+            <Reveal
+              delay={3}
+              className="mt-8 flex items-center gap-2 rounded-[var(--r-pill)] px-4 py-2 text-[var(--c-ink-dim)]"
+              style={pane()}
+            >
               <Lock size={13} aria-hidden="true" />
               <span className="ui-eyebrow">{LANDING.hero.assurance}</span>
             </Reveal>
@@ -104,11 +122,6 @@ export default function Landing() {
             {PLANNING_MODES.map((m, i) => (
               <ModeTile key={m.id} mode={m} index={i} />
             ))}
-            <BentoTile size="sm" index={PLANNING_MODES.length} className="justify-end">
-              <p className="ui-prose text-[length:var(--type-small)]">
-                Not sure? Fully AI is the fastest, and everything it chooses can be swapped afterwards.
-              </p>
-            </BentoTile>
           </div>
         </Section>
 
@@ -123,11 +136,6 @@ export default function Landing() {
             {LANDING.howItWorks.steps.map((s, i) => (
               <StepTile key={s.title} index={i} {...s} />
             ))}
-            <BentoTile size="sm" index={3} className="justify-end">
-              <p className="ui-prose text-[length:var(--type-small)]">
-                Fares come from rail and maps providers. Anything we could not confirm is labelled an estimate.
-              </p>
-            </BentoTile>
           </div>
         </Section>
 

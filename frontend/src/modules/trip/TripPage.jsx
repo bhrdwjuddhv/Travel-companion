@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, MessageSquare, Share2, Workflow } from 'lucide-react';
+import { CalendarDays, Map as MapIcon, MessageSquare, Share2, Workflow } from 'lucide-react';
 import TripCanvas from '../graph/TripCanvas';
 import BudgetPanel from '../budget/BudgetPanel';
 import CalendarView from '../calendar/CalendarView';
+// Leaflet is ~50kB gzipped and most sessions never open the map, so it loads
+// when the tab is first clicked rather than on every page view.
+const MapView = lazy(() => import('../map/MapView'));
 import ChatPanel from '../chat/ChatPanel';
 import ThemeToggle from '../../shared/ThemeToggle';
 import { api } from '../../shared/api';
 import { useIsMobile } from '../../shared/useIsMobile';
-
-const LAYOUT_SAVE_DELAY_MS = 600;
 
 export default function TripPage() {
   const { tripId } = useParams();
@@ -26,26 +27,9 @@ export default function TripPage() {
   const [editContext, setEditContext] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
 
-  const layoutRef = useRef({});
-  const saveTimer = useRef(null);
-
   useEffect(() => {
-    api(`/api/trips/${tripId}`).then((t) => {
-      layoutRef.current = t.layout ?? {};
-      setTrip(t);
-    }, (e) => setError(e.message));
+    api(`/api/trips/${tripId}`).then(setTrip, (e) => setError(e.message));
   }, [tripId]);
-
-  // Dragging fires constantly; only the last position in a burst is worth a write.
-  const onLayoutChange = (nodeId, position) => {
-    layoutRef.current = { ...layoutRef.current, [nodeId]: position };
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      api(`/api/trips/${tripId}/layout`, { method: 'PUT', body: { layout: layoutRef.current } }).catch((e) =>
-        setNote(`Could not save layout: ${e.message}`)
-      );
-    }, LAYOUT_SAVE_DELAY_MS);
-  };
 
   const mutate = async (tool, args) => {
     setBusy(true);
@@ -116,6 +100,7 @@ export default function TripPage() {
 
           <div className="flex overflow-hidden rounded-[var(--r-pill)] border border-[var(--c-border-strong)]">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')} Icon={Workflow} label="Graph" />
+            <ViewTab active={view === 'map'} onClick={() => setView('map')} Icon={MapIcon} label="Map" />
             <ViewTab active={view === 'calendar'} onClick={() => setView('calendar')} Icon={CalendarDays} label="Calendar" />
           </div>
 
@@ -163,7 +148,7 @@ export default function TripPage() {
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col">
-          {view === 'graph' ? (
+          {view === 'graph' && (
             <TripCanvas
               plan={plan}
               semi={semi}
@@ -171,11 +156,14 @@ export default function TripPage() {
                 setEditContext(context);
                 setChatOpen(true);
               }}
-              onLayoutChange={onLayoutChange}
             />
-          ) : (
-            <CalendarView trip={trip} />
           )}
+          {view === 'map' && (
+            <Suspense fallback={<Message>Loading the map…</Message>}>
+              <MapView trip={trip} />
+            </Suspense>
+          )}
+          {view === 'calendar' && <CalendarView trip={trip} />}
         </div>
 
         {chatOpen && (
