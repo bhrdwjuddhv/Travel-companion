@@ -21,9 +21,11 @@ export default function Landing() {
     setTimeout(() => navigate('/planning', { state: { fromAccent: true, ...state } }), FEATURES.transitionMs);
   };
 
+  // A missing element must not cost the user their trip, so the wipe falls
+  // back to the middle of the screen rather than throwing.
   const centreOf = (el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const r = el?.getBoundingClientRect?.();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
   };
 
   // Extraction done: carry whatever was found into the form. Nothing found

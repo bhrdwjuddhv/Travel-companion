@@ -20,16 +20,20 @@ export default function HeroPrompt({ value, onChange, onExtracted }) {
     const text = value.trim();
     if (!text || busy) return;
 
+    // currentTarget is only live while the event is dispatching, so hold the
+    // form itself — the transition needs it after the request resolves.
+    const form = e.currentTarget;
+
     setBusy(true);
     setError(null);
     try {
       const { fields } = await api('/api/planning/extract', { method: 'POST', body: { text } });
-      onExtracted(fields, e.currentTarget);
+      onExtracted(fields, form);
     } catch (err) {
       // Off topic is worth saying out loud; anything else just opens the empty
       // form, which is where the user was headed anyway.
       if (err.status === 400) setError(err.message);
-      else onExtracted(null, e.currentTarget);
+      else onExtracted(null, form);
     } finally {
       setBusy(false);
     }
