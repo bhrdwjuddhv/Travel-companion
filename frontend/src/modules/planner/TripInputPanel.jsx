@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, PLANNING_MODES, THEME } from '../../constants';
-
-const field =
-  'w-full min-h-10 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-base outline-none focus:border-neutral-500 sm:text-sm';
-const label = 'mb-1 block text-xs uppercase tracking-wide text-neutral-500';
+import { Sparkles } from 'lucide-react';
+import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, PLANNING_MODES } from '../../constants';
 
 const csv = (s) => s.split(',').map((x) => x.trim()).filter(Boolean);
 const num = (s) => (s === '' ? null : Number(s));
@@ -19,9 +16,14 @@ const daysBetween = (from, to) =>
 
 const TODAY = iso(new Date());
 
-export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) {
-  const modeInfo = PLANNING_MODES.find((m) => m.id === mode);
-  const [f, setF] = useState({
+/**
+ * Starting values. Without a prefill the form opens on its usual defaults;
+ * with one, only what the sentence actually said is filled and everything else
+ * stays blank for the user — a guessed departure date is worse than an empty
+ * one they have to notice.
+ */
+const initialState = (prefill) => {
+  const base = {
     origin: '',
     primaryDestination: '',
     additionalDestinations: '',
@@ -35,7 +37,30 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
     interests: '',
     accommodationPreference: 'any',
     specialRequests: '',
-  });
+  };
+  if (!prefill) return base;
+
+  return {
+    ...base,
+    origin: prefill.origin ?? '',
+    primaryDestination: prefill.primaryDestination ?? '',
+    additionalDestinations: (prefill.additionalDestinations ?? []).join(', '),
+    startDate: prefill.startDate ?? '',
+    endDate: prefill.endDate ?? '',
+    direction: prefill.direction ?? base.direction,
+    budgetTotal: prefill.budgetTotal != null ? String(prefill.budgetTotal) : '',
+    budgetTier: prefill.budgetTier ?? base.budgetTier,
+    preferredTransport: prefill.preferredTransport ?? base.preferredTransport,
+    travellerCount: prefill.travellerCount ?? base.travellerCount,
+    interests: (prefill.interests ?? []).join(', '),
+    accommodationPreference: prefill.accommodationPreference ?? base.accommodationPreference,
+    specialRequests: prefill.specialRequests ?? '',
+  };
+};
+
+export default function TripInputPanel({ mode = 'auto', prefill = null, onGenerate, onCancel }) {
+  const modeInfo = PLANNING_MODES.find((m) => m.id === mode);
+  const [f, setF] = useState(() => initialState(prefill));
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   // Trains don't run every day, so the range is the source of truth and the day
@@ -47,7 +72,11 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
     const startDate = e.target.value;
     // Dragging the start past the end pushes the end along rather than
     // silently producing an invalid range.
-    setF({ ...f, startDate, endDate: f.endDate < startDate ? addDays(startDate, Math.max(durationDays - 1, 0)) : f.endDate });
+    setF({
+      ...f,
+      startDate,
+      endDate: f.endDate && f.endDate < startDate ? addDays(startDate, Math.max(durationDays - 1, 0)) : f.endDate,
+    });
   };
 
   const submit = (e) => {
@@ -71,31 +100,38 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
   };
 
   return (
-    <form
-      onSubmit={submit}
-      className="mx-auto w-full max-w-2xl rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 sm:p-6"
-    >
-      <div className="mb-6 flex items-baseline justify-between">
-        <h2 className="text-xl font-semibold">Where are we going?</h2>
+    <form onSubmit={submit} className="ui-card mx-auto w-full max-w-2xl p-5 sm:p-7">
+      <div className="mb-6 flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-tight">Where are we going?</h2>
         {modeInfo && (
           <span
-            className="rounded-full border px-3 py-1 text-[11px] uppercase tracking-wide"
-            style={{ borderColor: THEME.originGreenEdge, color: THEME.originGreen }}
+            className="rounded-[var(--r-pill)] border px-3 py-1 text-[length:var(--type-micro)] font-semibold"
+            style={{ borderColor: 'var(--c-accent-edge)', color: 'var(--c-accent-text)' }}
           >
             {modeInfo.name}
           </span>
         )}
       </div>
 
+      {prefill && (
+        <p
+          className="mb-5 flex items-start gap-2 rounded-[var(--r-md)] px-3 py-2.5 text-[length:var(--type-small)]"
+          style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent-text)' }}
+        >
+          <Sparkles size={14} className="mt-0.5 shrink-0" />
+          Filled in from what you typed. Check it, fill the gaps, then plan — nothing has been generated yet.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <span className={label}>From</span>
-          <input className={field} required value={f.origin} onChange={set('origin')} placeholder="Delhi" />
+          <span className="ui-label">From</span>
+          <input className="ui-field" required value={f.origin} onChange={set('origin')} placeholder="Delhi" />
         </div>
         <div>
-          <span className={label}>To</span>
+          <span className="ui-label">To</span>
           <input
-            className={field}
+            className="ui-field"
             required
             value={f.primaryDestination}
             onChange={set('primaryDestination')}
@@ -103,36 +139,43 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
           />
         </div>
         <div className="sm:col-span-2">
-          <span className={label}>Other stops (optional, comma separated)</span>
+          <span className="ui-label">Other stops (optional, comma separated)</span>
           <input
-            className={field}
+            className="ui-field"
             value={f.additionalDestinations}
             onChange={set('additionalDestinations')}
             placeholder="Udaipur, Jodhpur"
           />
         </div>
         <div>
-          <span className={label}>Leaving</span>
-          <input className={field} type="date" required min={TODAY} value={f.startDate} onChange={setStart} />
+          <span className="ui-label">Leaving</span>
+          <input className="ui-field" type="date" required min={TODAY} value={f.startDate} onChange={setStart} />
         </div>
         <div>
-          <span className={label}>Coming back</span>
-          <input className={field} type="date" required min={f.startDate} value={f.endDate} onChange={set('endDate')} />
+          <span className="ui-label">Coming back</span>
+          <input
+            className="ui-field"
+            type="date"
+            required
+            min={f.startDate || TODAY}
+            value={f.endDate}
+            onChange={set('endDate')}
+          />
         </div>
         <div>
-          <span className={label}>Travellers</span>
-          <input className={field} type="number" min="1" value={f.travellerCount} onChange={set('travellerCount')} />
+          <span className="ui-label">Travellers</span>
+          <input className="ui-field" type="number" min="1" value={f.travellerCount} onChange={set('travellerCount')} />
         </div>
         <div>
-          <span className={label}>Trip type</span>
-          <select className={field} value={f.direction} onChange={set('direction')}>
+          <span className="ui-label">Trip type</span>
+          <select className="ui-field" value={f.direction} onChange={set('direction')}>
             <option value="round">Round trip</option>
             <option value="oneway">One way</option>
           </select>
         </div>
         <div>
-          <span className={label}>Transport</span>
-          <select className={field} value={f.preferredTransport} onChange={set('preferredTransport')}>
+          <span className="ui-label">Transport</span>
+          <select className="ui-field" value={f.preferredTransport} onChange={set('preferredTransport')}>
             {['any', 'train', 'bus', 'flight', 'car'].map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -141,9 +184,9 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
           </select>
         </div>
         <div>
-          <span className={label}>Budget cap (INR, optional)</span>
+          <span className="ui-label">Budget cap (INR, optional)</span>
           <input
-            className={field}
+            className="ui-field"
             type="number"
             min="0"
             inputMode="numeric"
@@ -153,8 +196,8 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
           />
         </div>
         <div>
-          <span className={label}>Stay</span>
-          <select className={field} value={f.accommodationPreference} onChange={set('accommodationPreference')}>
+          <span className="ui-label">Stay</span>
+          <select className="ui-field" value={f.accommodationPreference} onChange={set('accommodationPreference')}>
             {['any', 'hotel', 'hostel', 'homestay', 'budget'].map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -163,7 +206,7 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
           </select>
         </div>
         <div className="sm:col-span-2">
-          <span className={label}>How comfortable?</span>
+          <span className="ui-label">How comfortable?</span>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {BUDGET_TIERS.map((tier) => {
               const active = f.budgetTier === tier.id;
@@ -171,19 +214,14 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
                 <button
                   key={tier.id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setF({ ...f, budgetTier: tier.id })}
-                  className={`rounded-lg border p-3 text-left transition ${
-                    active ? 'border-transparent bg-neutral-800' : 'border-neutral-800 hover:border-neutral-600'
-                  }`}
-                  style={active ? { borderColor: THEME.originGreenEdge } : undefined}
+                  className="ui-pill flex-col items-start rounded-[var(--r-md)] p-3 text-left"
                 >
-                  <span
-                    className="block text-sm font-medium"
-                    style={{ color: active ? THEME.originGreen : undefined }}
-                  >
-                    {tier.label}
+                  <span className="block text-[length:var(--type-body)] font-medium">{tier.label}</span>
+                  <span className="mt-1 block text-[length:var(--type-micro)] leading-snug opacity-70">
+                    {tier.blurb}
                   </span>
-                  <span className="mt-1 block text-[11px] leading-snug text-neutral-500">{tier.blurb}</span>
                 </button>
               );
             })}
@@ -191,10 +229,10 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
         </div>
 
         <div className="sm:col-span-2">
-          <span className={label}>Special requests (optional)</span>
+          <span className="ui-label">Special requests (optional)</span>
           <textarea
             rows={2}
-            className={`${field} resize-none`}
+            className="ui-field resize-none"
             value={f.specialRequests}
             onChange={set('specialRequests')}
             placeholder="vegetarian food · avoid long train rides · temples over nightlife"
@@ -202,9 +240,9 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
         </div>
 
         <div className="sm:col-span-2">
-          <span className={label}>Interests (comma separated)</span>
+          <span className="ui-label">Interests (comma separated)</span>
           <input
-            className={field}
+            className="ui-field"
             value={f.interests}
             onChange={set('interests')}
             placeholder="forts, street food, photography"
@@ -212,21 +250,17 @@ export default function TripInputPanel({ mode = 'auto', onGenerate, onCancel }) 
         </div>
       </div>
 
-      <p className="mt-5 text-xs text-neutral-500">
+      <p className="mt-5 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
         {validRange
           ? `${durationDays} day${durationDays > 1 ? 's' : ''} — trains and fares are checked against these dates.`
-          : 'Pick an end date on or after the start, within 21 days.'}
+          : 'Pick both dates: an end on or after the start, within 21 days.'}
       </p>
 
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          disabled={!validRange}
-          className="min-h-11 flex-1 rounded-full px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:brightness-110 disabled:opacity-40 sm:flex-none"
-          style={{ background: THEME.originGreen }}
-        >
+      <div className="mt-5 flex items-center gap-3">
+        <button disabled={!validRange} className="ui-btn ui-btn-primary flex-1 sm:flex-none">
           {mode === 'guided' ? 'Start planning' : 'Generate plan'}
         </button>
-        <button type="button" onClick={onCancel} className="text-sm text-neutral-500 hover:text-neutral-300">
+        <button type="button" onClick={onCancel} className="ui-btn ui-btn-sm text-[var(--c-ink-muted)]">
           Change mode
         </button>
       </div>

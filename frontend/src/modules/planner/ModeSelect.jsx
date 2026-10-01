@@ -1,36 +1,37 @@
-import { PLANNING_MODES, THEME } from '../../constants';
+import { PLANNING_MODES } from '../../constants';
 
 export default function ModeSelect({ onSelect, onBack }) {
   return (
-    <div className="w-full max-w-4xl px-1">
-      <h1 className="text-xl font-semibold tracking-tight text-neutral-100 sm:text-2xl">How do you want to plan?</h1>
-      <p className="mt-2 text-sm text-neutral-400">
+    <div className="w-full max-w-5xl px-1">
+      <h1 className="ui-h2">How do you want to plan?</h1>
+      <p className="mt-3 text-[length:var(--type-body)] text-[var(--c-ink-muted)]">
         All three produce the same editable plan — only how much you decide changes.
       </p>
 
-      <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-3">
+      <div className="mt-8 grid gap-4 lg:grid-cols-3">
         {PLANNING_MODES.map((mode) => (
           <button
             key={mode.id}
             onClick={() => onSelect(mode.id)}
-            className="group flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 text-left transition hover:border-neutral-600 hover:bg-neutral-900 active:border-neutral-500 sm:p-5"
+            className="ui-card ui-card-interactive group flex flex-col p-5 text-left"
           >
-            <span className="text-[11px] uppercase tracking-wider" style={{ color: THEME.originGreen }}>
-              {mode.tagline}
-            </span>
-            <h2 className="mt-1 text-base font-medium text-neutral-100">{mode.name}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">{mode.description}</p>
-            <ul className="mt-4 space-y-1.5 text-xs text-neutral-500">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-[length:var(--type-h3)] font-semibold">{mode.name}</h2>
+              <span className="ui-eyebrow">{mode.tagline}</span>
+            </div>
+            <p className="mt-2 text-[length:var(--type-body)] leading-relaxed text-[var(--c-ink-muted)]">
+              {mode.description}
+            </p>
+            <ul className="mt-4 space-y-2 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
               {mode.bullets.map((b) => (
-                <li key={b} className="flex items-center gap-2">
-                  <span className="h-1 w-1 rounded-full" style={{ background: THEME.originGreen }} />
+                <li key={b} className="flex items-center gap-2.5">
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-[var(--c-ink-dim)]" />
                   {b}
                 </li>
               ))}
             </ul>
             <span
-              className="mt-5 text-xs font-medium opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100"
-              style={{ color: THEME.originGreen }}
+              className="mt-6 text-[length:var(--type-small)] font-medium text-[var(--c-ink)] transition-opacity duration-200 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-visible:opacity-100"
             >
               Choose {mode.name} &rarr;
             </span>
@@ -38,7 +39,7 @@ export default function ModeSelect({ onSelect, onBack }) {
         ))}
       </div>
 
-      <button onClick={onBack} className="mt-8 min-h-11 text-sm text-neutral-500 hover:text-neutral-300">
+      <button onClick={onBack} className="ui-btn ui-btn-sm mt-8 text-[var(--c-ink-muted)]">
         &larr; Back
       </button>
     </div>

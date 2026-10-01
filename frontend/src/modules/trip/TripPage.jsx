@@ -7,7 +7,6 @@ import CalendarView from '../calendar/CalendarView';
 import ChatPanel from '../chat/ChatPanel';
 import ThemeToggle from '../../shared/ThemeToggle';
 import { api } from '../../shared/api';
-import { THEME } from '../../constants';
 import { useIsMobile } from '../../shared/useIsMobile';
 
 const LAYOUT_SAVE_DELAY_MS = 600;
@@ -97,11 +96,11 @@ export default function TripPage() {
   };
 
   return (
-    <main className="flex h-[100dvh] flex-col bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-neutral-200 px-4 py-2.5 sm:px-5 sm:py-3 dark:border-neutral-800">
+    <main className="flex h-[100dvh] flex-col bg-[var(--c-bg)] text-[var(--c-ink)]">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[var(--c-border)] bg-[var(--c-bg-alt)] px-4 py-2.5 sm:px-5 sm:py-3">
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-medium">{route}</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="truncate text-[length:var(--type-body)] font-semibold">{route}</h1>
+          <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
             {input.startDate ? `${input.startDate} → ${input.endDate}` : `${input.durationDays} days`} ·{' '}
             {input.travellerCount} traveller{input.travellerCount > 1 ? 's' : ''} · v{trip.versionNumber} ·{' '}
             {input.planningMode}
@@ -109,20 +108,26 @@ export default function TripPage() {
         </div>
 
         <div className="flex w-full shrink-0 flex-wrap items-center gap-2 text-sm sm:w-auto">
-          {busy && <span className="text-xs" style={{ color: THEME.originGreen }}>updating…</span>}
+          {busy && (
+            <span className="text-[length:var(--type-small)]" style={{ color: 'var(--c-accent-text)' }}>
+              updating…
+            </span>
+          )}
 
-          <div className="flex overflow-hidden rounded-full border border-neutral-300 dark:border-neutral-700">
+          <div className="flex overflow-hidden rounded-[var(--r-pill)] border border-[var(--c-border-strong)]">
             <ViewTab active={view === 'graph'} onClick={() => setView('graph')} Icon={Workflow} label="Graph" />
             <ViewTab active={view === 'calendar'} onClick={() => setView('calendar')} Icon={CalendarDays} label="Calendar" />
           </div>
 
           <button
             onClick={() => setChatOpen((v) => !v)}
-            className={`flex min-h-9 items-center gap-1.5 rounded-full border px-4 py-1.5 ${
+            aria-pressed={chatOpen}
+            className="ui-btn ui-btn-sm"
+            style={
               chatOpen
-                ? 'border-transparent bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                : 'border-neutral-300 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900'
-            }`}
+                ? { background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }
+                : { border: '1px solid var(--c-border-strong)' }
+            }
           >
             <MessageSquare size={13} />
             Chat
@@ -132,22 +137,29 @@ export default function TripPage() {
 
           <button
             onClick={share}
-            className="flex min-h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            className="ui-btn ui-btn-ghost ui-btn-sm"
           >
             <Share2 size={13} />
             {copied ? 'Copied' : 'Share'}
           </button>
           <button
             onClick={() => navigate('/planning')}
-            className="min-h-9 rounded-full px-4 py-1.5 font-medium text-neutral-950"
-            style={{ background: THEME.originGreen }}
+            className="ui-btn ui-btn-primary ui-btn-sm"
           >
             New trip
           </button>
         </div>
       </header>
 
-      {note && <p className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-xs text-amber-600 dark:text-amber-300">{note}</p>}
+      {note && (
+        <p
+          className="border-b px-5 py-2 text-[length:var(--type-small)]"
+          style={{ borderColor: 'var(--c-border)', background: 'var(--c-warn-soft)', color: 'var(--c-warn)' }}
+          role="status"
+        >
+          {note}
+        </p>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col">
@@ -167,7 +179,7 @@ export default function TripPage() {
         </div>
 
         {chatOpen && (
-          <div className="h-80 w-full shrink-0 border-t border-neutral-200 lg:h-auto lg:w-96 lg:border-l lg:border-t-0 dark:border-neutral-800">
+          <div className="h-80 w-full shrink-0 border-t border-[var(--c-border)] lg:h-auto lg:w-96 lg:border-l lg:border-t-0">
             <ChatPanel
               tripId={tripId}
               context={editContext}
@@ -194,9 +206,13 @@ export default function TripPage() {
 const ViewTab = ({ active, onClick, Icon, label }) => (
   <button
     onClick={onClick}
-    className={`flex min-h-9 items-center gap-1.5 px-3.5 py-1.5 text-xs transition ${
-      active ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-    }`}
+    aria-pressed={active}
+    className="flex min-h-9 items-center gap-1.5 px-3.5 py-1.5 text-[length:var(--type-small)] transition-colors"
+    style={
+      active
+        ? { background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }
+        : { color: 'var(--c-ink-muted)' }
+    }
   >
     <Icon size={13} />
     {label}
@@ -204,7 +220,7 @@ const ViewTab = ({ active, onClick, Icon, label }) => (
 );
 
 const Message = ({ children }) => (
-  <main className="grid min-h-screen place-items-center bg-white p-6 text-sm text-neutral-500 dark:bg-neutral-950">
+  <main className="grid min-h-screen place-items-center bg-[var(--c-bg)] p-6 text-[length:var(--type-body)] text-[var(--c-ink-muted)]">
     {children}
   </main>
 );

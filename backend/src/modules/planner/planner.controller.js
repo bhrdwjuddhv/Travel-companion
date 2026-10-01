@@ -3,6 +3,7 @@ import { TripInput } from '../../schemas/trip.schema.js';
 import { parseOrThrow } from '../../shared/validate.js';
 import { sseStart } from '../../shared/sse.js';
 import { runPlanning, submitDecision, cancelDecisions } from './planner.service.js';
+import { extractTripFields } from './planner.extract.js';
 
 // Retrying helps for a bad model answer, a flaky provider or a timed-out
 // decision. It does not help for a bad API key or a blown quota.
@@ -29,6 +30,14 @@ export async function start(req, res) {
   } finally {
     res.end();
   }
+}
+
+const ExtractBody = z.object({ text: z.string().min(1).max(1000) });
+
+/** POST /api/planning/extract — free text in, pre-fill for the form out. */
+export async function extract(req, res) {
+  const body = parseOrThrow(ExtractBody, req.body, 'prompt');
+  res.json(await extractTripFields(body.text));
 }
 
 const DecisionBody = z.object({ decisionId: z.string().min(1), choiceId: z.string().min(1) });

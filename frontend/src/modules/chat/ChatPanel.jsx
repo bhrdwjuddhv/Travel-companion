@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { CornerDownLeft, Sparkles, X } from 'lucide-react';
 import EditContextChip from './EditContextChip';
 import { api } from '../../shared/api';
-import { THEME } from '../../constants';
 
 /**
  * Editing by conversation. The chip says which element the message is about;
@@ -46,20 +45,24 @@ export default function ChatPanel({ tripId, context, onClearContext, onApplied, 
   };
 
   return (
-    <aside className="flex h-full w-full flex-col border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-      <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5 dark:border-neutral-800">
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles size={14} style={{ color: THEME.originGreen }} />
+    <aside className="flex h-full w-full flex-col bg-[var(--c-bg-alt)]">
+      <header className="flex items-center justify-between border-b border-[var(--c-border)] px-4 py-3">
+        <span className="flex items-center gap-2 text-[length:var(--type-body)] font-medium">
+          <Sparkles size={14} style={{ color: 'var(--c-accent)' }} />
           Edit by chat
         </span>
-        <button onClick={onClose} className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100">
+        <button
+          onClick={onClose}
+          aria-label="Close chat"
+          className="text-[var(--c-ink-muted)] transition-colors hover:text-[var(--c-ink)]"
+        >
           <X size={15} />
         </button>
       </header>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {!messages.length && (
-          <p className="text-xs leading-relaxed text-neutral-500">
+          <p className="text-[length:var(--type-small)] leading-relaxed text-[var(--c-ink-muted)]">
             Point at anything with the pencil, then say what to change — “make the return cheaper”, “drop the
             fort”, “move this to day 2”. Questions are answered without touching the plan.
           </p>
@@ -67,29 +70,30 @@ export default function ChatPanel({ tripId, context, onClearContext, onApplied, 
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
+            className="max-w-[90%] rounded-[var(--r-md)] px-3 py-2 text-[length:var(--type-body)]"
+            style={
               m.role === 'user'
-                ? 'ml-auto bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                ? { marginLeft: 'auto', background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }
                 : m.error
-                  ? 'border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                  : 'border border-neutral-200 text-neutral-800 dark:border-neutral-800 dark:text-neutral-200'
-            }`}
+                  ? { background: 'var(--c-warn-soft)', color: 'var(--c-warn)' }
+                  : { border: '1px solid var(--c-border)', color: 'var(--c-ink)' }
+            }
           >
             {m.text}
             {m.role === 'assistant' && m.changed && (
-              <span className="mt-1 block text-[11px]" style={{ color: THEME.originGreen }}>
+              <span className="mt-1 block text-[length:var(--type-micro)] opacity-80">
                 plan updated
               </span>
             )}
           </div>
         ))}
-        {busy && <p className="text-xs text-neutral-500">Working on it…</p>}
+        {busy && <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">Working on it…</p>}
         <div ref={endRef} />
       </div>
 
       <EditContextChip context={context} onClose={onClearContext} />
 
-      <form onSubmit={send} className="flex items-end gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+      <form onSubmit={send} className="flex items-end gap-2 border-t border-[var(--c-border)] p-3">
         <textarea
           rows={2}
           value={draft}
@@ -98,12 +102,13 @@ export default function ChatPanel({ tripId, context, onClearContext, onApplied, 
             if (e.key === 'Enter' && !e.shiftKey) send(e);
           }}
           placeholder="Ask or tell…"
-          className="min-h-11 flex-1 resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900"
+          className="ui-field min-h-11 flex-1 resize-none"
         />
         <button
           disabled={busy || !draft.trim()}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg font-medium text-neutral-950 disabled:opacity-40"
-          style={{ background: THEME.originGreen }}
+          aria-label="Send"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--r-md)] font-medium disabled:opacity-40"
+          style={{ background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }}
         >
           <CornerDownLeft size={15} />
         </button>

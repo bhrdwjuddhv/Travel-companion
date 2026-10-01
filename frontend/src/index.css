@@ -1,46 +1,417 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 /* shared/theme.js resolves light/dark/system once and stamps both the class and
-   the attribute, so Tailwind and the canvas can never disagree. */
+   the attribute, so Tailwind and the canvas can never disagree. It also writes
+   every token from constants.js onto <html> as a custom property — the recipes
+   below are shapes only, and hold no values of their own. */
 @custom-variant dark (&:where(.dark, .dark *, [data-color-mode="dark"], [data-color-mode="dark"] *));
+
+@theme {
+  --font-sans: var(--type-font-family);
+}
 
 html {
   scroll-behavior: smooth;
-  background: #ffffff;
-}
-html.dark,
-html[data-color-mode='dark'] {
-  background: #09090b;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--type-font-family);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Green wipe: expands from the CTA's position into the planning screen. */
-@keyframes green-wipe {
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-size: var(--type-body);
+}
+
+::selection {
+  background: var(--c-ink);
+  color: var(--c-bg);
+}
+
+/* Keyboard focus has to stay visible on glass, where a subtle ring vanishes. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-ink);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* Headings are Inter at regular weight: presence comes from size and tracking,
+   never from bold. */
+h1, h2, h3 {
+  font-family: var(--type-display-family);
+  font-weight: var(--type-display-weight);
+  letter-spacing: var(--type-display-tracking);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ *
+ * The material: glass lit by a hairline
+ * ------------------------------------------------------------------ */
+
+/**
+ * A nearly transparent fill, a short blur, an inset top light, and a border
+ * drawn as a masked gradient so the edge is bright at top and bottom and
+ * disappears through the middle. That edge is the whole look.
+ */
+.liquid-glass {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-glass);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: none;
+  box-shadow: inset 0 1px 1px var(--c-glass-highlight);
+}
+
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    var(--c-border-strong) 0%,
+    var(--c-border) 20%,
+    transparent 40%,
+    transparent 60%,
+    var(--c-border) 80%,
+    var(--c-border-strong) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Type
+ * ------------------------------------------------------------------ */
+
+.ui-display {
+  font-family: var(--type-display-family);
+  font-size: var(--type-display);
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-leading);
+  letter-spacing: var(--type-display-tracking);
+}
+
+.ui-h2 {
+  font-family: var(--type-display-family);
+  font-size: var(--type-h2);
+  font-weight: var(--type-display-weight);
+  line-height: 1.15;
+  letter-spacing: var(--type-display-tracking);
+}
+
+/* The one repeated texture in the reference: small, widely tracked, muted. */
+.ui-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: var(--type-micro);
+  font-weight: 500;
+  letter-spacing: var(--type-label-tracking);
+  color: var(--c-ink-dim);
+}
+
+.ui-eyebrow {
+  font-size: var(--type-micro);
+  font-weight: 500;
+  letter-spacing: var(--type-label-tracking);
+  color: var(--c-ink-dim);
+}
+
+.ui-prose {
+  color: var(--c-ink-dim);
+  line-height: var(--type-prose-leading);
+  max-width: var(--sp-prose);
+}
+
+/* ------------------------------------------------------------------ *
+ * Components
+ * ------------------------------------------------------------------ */
+
+.ui-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--c-glass);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 1px var(--c-glass-highlight);
+}
+.ui-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    var(--c-border-strong) 0%,
+    var(--c-border) 20%,
+    transparent 40%,
+    transparent 60%,
+    var(--c-border) 80%,
+    var(--c-border-strong) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* A flat panel for dense UI, where a blur behind every row would cost more
+   than it gives. */
+.ui-card-quiet {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+}
+
+/* Interactive surfaces rise; they never grow. */
+.ui-card-interactive {
+  transition: transform var(--motion-base) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease);
+}
+.ui-card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--c-shadow-raised);
+}
+.ui-card-interactive:active {
+  transform: translateY(-1px);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 2rem;
+  border-radius: var(--r-pill);
+  font-size: var(--type-body);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease);
+}
+.ui-btn:hover {
+  transform: scale(1.03);
+}
+.ui-btn:active {
+  transform: scale(0.97);
+}
+.ui-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  transform: none;
+}
+
+.ui-btn-primary {
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  border: none;
+}
+.ui-btn-primary:hover {
+  box-shadow: var(--c-accent-glow);
+}
+
+/* Ghost is the glass material in button form. */
+.ui-btn-ghost {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-glass);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: var(--c-ink-muted);
+  box-shadow: inset 0 1px 1px var(--c-glass-highlight);
+  border: 1px solid var(--c-border);
+}
+.ui-btn-ghost:hover {
+  color: var(--c-ink);
+  border-color: var(--c-border-strong);
+}
+
+.ui-btn-sm {
+  min-height: 2.25rem;
+  padding: 0 1.1rem;
+  font-size: var(--type-small);
+}
+
+.ui-field {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-family: var(--type-font-family);
+  font-size: var(--type-body);
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--c-border);
+  transition: background var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+.ui-field::placeholder {
+  color: var(--c-ink-dim);
+}
+.ui-field:focus {
+  background: var(--c-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--c-border-strong);
+}
+/* Dark themes need the native date/number widgets inverted to stay legible. */
+:where(.dark, [data-color-mode='dark']) .ui-field::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+}
+:where(.dark, [data-color-mode='dark']) .ui-field option {
+  background: #141416;
+  color: #fff;
+}
+
+/* A pill that toggles: white when chosen, a hairline when not. */
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--r-pill);
+  font-size: var(--type-small);
+  font-weight: 500;
+  color: var(--c-ink-dim);
+  box-shadow: inset 0 0 0 1px var(--c-border);
+  transition: color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease);
+}
+.ui-pill:hover {
+  color: var(--c-ink);
+  box-shadow: inset 0 0 0 1px var(--c-border-strong);
+}
+.ui-pill[aria-pressed='true'],
+.ui-pill[data-active='true'] {
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  box-shadow: none;
+}
+
+/* Range inputs: a hairline track and a white thumb with a soft glow. */
+.ui-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-hover);
+  outline: none;
+  cursor: pointer;
+}
+.ui-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  box-shadow: var(--c-accent-glow);
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+.ui-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+.ui-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  box-shadow: var(--c-accent-glow);
+}
+.ui-slider::-moz-range-track {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-hover);
+}
+
+.ui-section {
+  padding-block: var(--sp-section-y);
+  padding-inline: var(--sp-gutter);
+}
+
+.ui-measure {
+  width: 100%;
+  max-width: var(--sp-max-width);
+  margin-inline: auto;
+}
+
+/* The bento: fixed row heights, four columns, items claim spans. */
+.ui-bento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 160px;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .ui-bento {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 200px;
+    gap: 1rem;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion
+ * ------------------------------------------------------------------ */
+
+/* Scroll reveal. The resting state is fully visible, and the hidden state is
+   only applied once the observer is actually running — so a headless render,
+   a hidden tab or a failed script still ships the content. */
+[data-reveal='pending'] {
+  opacity: 0;
+  transform: translateY(var(--motion-reveal-y));
+}
+[data-reveal] {
+  transition: opacity var(--motion-slow) var(--motion-ease),
+    transform var(--motion-slow) var(--motion-ease);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* Wipe from the CTA into the planning screen. */
+@keyframes accent-wipe {
   from { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
   to   { transform: translate(-50%, -50%) scale(130); opacity: 1; }
 }
-.green-wipe {
-  animation: green-wipe var(--wipe-ms, 520ms) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.accent-wipe {
+  animation: accent-wipe var(--wipe-ms, 520ms) cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* ...and lands on /planning as green fading away. */
-@keyframes green-settle {
+@keyframes accent-settle {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
-.green-settle {
-  animation: green-settle var(--wipe-ms, 520ms) ease-out forwards;
+.accent-settle {
+  animation: accent-settle var(--wipe-ms, 520ms) ease-out forwards;
 }
 
-/* Graph nodes grow outward from the green origin (delay set per node). */
+/* Graph nodes grow outward from the origin (delay set per node). */
 @keyframes node-grow {
   from { opacity: 0; transform: scale(0.86) translateX(-14px); }
   to   { opacity: 1; transform: none; }
 }
 .node-grow {
-  animation: node-grow 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: node-grow var(--motion-slow) var(--motion-ease) backwards;
 }
-
-
 
 /* A node whose real data hasn't streamed in yet. */
 @keyframes pending-pulse {
@@ -50,4 +421,13 @@ html[data-color-mode='dark'] {
 .node-pending {
   animation: pending-pulse 1.4s ease-in-out infinite;
   border-style: dashed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  [data-reveal='pending'] { opacity: 1; transform: none; }
+  [data-reveal] { transition: none; }
+  .node-grow, .accent-wipe, .accent-settle { animation-duration: 1ms; }
+  .node-pending { animation: none; opacity: 0.7; }
+  .ui-card-interactive:hover, .ui-btn:hover, .ui-btn:active { transform: none; }
 }

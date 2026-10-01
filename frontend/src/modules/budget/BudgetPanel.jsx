@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RotateCcw, Wand2 } from 'lucide-react';
 import { api } from '../../shared/api';
-import { THEME } from '../../constants';
 
 const ROWS = [
   ['intercityTransport', 'Transport', true],
@@ -64,18 +63,21 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
   const reset = () => setTargets(startingTargets(budget));
 
   return (
-    <aside className="w-full shrink-0 overflow-y-auto border-t border-neutral-200 p-5 lg:w-80 lg:border-l lg:border-t-0 dark:border-neutral-800">
-      <p className="text-xs uppercase tracking-wide text-neutral-500">Estimated total</p>
-      <p className="mb-1 text-3xl font-semibold tabular-nums">{money(budget.total, budget.currency)}</p>
+    <aside className="w-full shrink-0 overflow-y-auto border-t border-[var(--c-border)] bg-[var(--c-bg-alt)] p-5 lg:w-80 lg:border-l lg:border-t-0">
+      <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">Estimated total</p>
+      <p className="mb-1 text-3xl font-semibold tracking-tight tabular-nums">{money(budget.total, budget.currency)}</p>
 
       {dirty && (
-        <p className="text-xs text-neutral-500">
+        <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
           Targets add up to <span className="tabular-nums">{money(projected, budget.currency)}</span>
         </p>
       )}
 
       {verdict?.cap != null && (
-        <p className={`mt-1 text-xs ${verdict.withinBudget ? 'text-emerald-500' : 'text-amber-500'}`}>
+        <p
+          className="mt-1 text-[length:var(--type-small)] font-medium"
+          style={{ color: verdict.withinBudget ? 'var(--c-accent-text)' : 'var(--c-warn)' }}
+        >
           {verdict.withinBudget
             ? `Within your ${money(verdict.cap, budget.currency)} budget`
             : `Over budget by ${money(verdict.overBy, budget.currency)}`}
@@ -88,8 +90,8 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
           const value = targets[key] ?? budget[key];
           return (
             <li key={key}>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">{name}</span>
+              <div className="flex justify-between text-[length:var(--type-body)]">
+                <span className="text-[var(--c-ink-muted)]">{name}</span>
                 <span className="tabular-nums">{money(value, budget.currency)}</span>
               </div>
 
@@ -101,12 +103,12 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
                   step={Math.max(1, Math.round((band.max - band.min) / 100))}
                   value={Math.min(Math.max(value, band.min), band.max)}
                   onChange={(e) => setTargets((t) => ({ ...t, [key]: Number(e.target.value) }))}
-                  className="mt-2 h-1 w-full cursor-pointer appearance-none rounded bg-neutral-200 accent-emerald-500 dark:bg-neutral-800"
+                  className="ui-slider mt-2"
                 />
               ) : (
-                <div className="mt-2 h-1 rounded bg-neutral-100 dark:bg-neutral-900">
+                <div className="mt-2 h-1 rounded bg-[var(--c-surface-hover)]">
                   <div
-                    className="h-1 rounded bg-neutral-400 transition-[width] duration-500 dark:bg-neutral-600"
+                    className="h-1 rounded bg-[var(--c-ink-dim)] transition-[width] duration-500"
                     style={{ width: `${(budget[key] / Math.max(budget.total, 1)) * 100}%` }}
                   />
                 </div>
@@ -117,8 +119,8 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
 
         {bands?.activityCount && (
           <li>
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-500">Stops per day</span>
+            <div className="flex justify-between text-[length:var(--type-body)]">
+              <span className="text-[var(--c-ink-muted)]">Stops per day</span>
               <span className="tabular-nums">{targets.activityCount ?? 'as planned'}</span>
             </div>
             <input
@@ -127,7 +129,7 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
               max={bands.activityCount.max}
               value={targets.activityCount ?? Math.ceil(bands.activityCount.max / 2)}
               onChange={(e) => setTargets((t) => ({ ...t, activityCount: Number(e.target.value) }))}
-              className="mt-2 h-1 w-full cursor-pointer appearance-none rounded bg-neutral-200 accent-emerald-500 dark:bg-neutral-800"
+              className="ui-slider mt-2"
             />
           </li>
         )}
@@ -138,8 +140,7 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
           <button
             onClick={generate}
             disabled={busy}
-            className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold text-neutral-950 disabled:opacity-50"
-            style={{ background: THEME.originGreen }}
+            className="ui-btn ui-btn-primary ui-btn-sm flex-1"
           >
             <Wand2 size={14} />
             {busy ? 'Re-fitting…' : 'Generate new'}
@@ -147,19 +148,24 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
           <button
             onClick={reset}
             title="Reset sliders"
-            className="grid h-10 w-10 place-items-center rounded-full border border-neutral-300 text-neutral-500 dark:border-neutral-700"
+            aria-label="Reset sliders"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--r-pill)] border border-[var(--c-border-strong)] text-[var(--c-ink-muted)]"
           >
             <RotateCcw size={14} />
           </button>
         </div>
       )}
 
-      {note && <p className="mt-3 text-xs text-amber-500">{note}</p>}
+      {note && (
+        <p className="mt-3 text-[length:var(--type-small)]" style={{ color: 'var(--c-warn)' }}>
+          {note}
+        </p>
+      )}
 
-      <p className="mt-5 text-xs text-neutral-500">
+      <p className="mt-5 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
         Re-fitting trades between options already researched, so it costs nothing and takes no time.
       </p>
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
         Fares and room rates are estimates unless a provider confirmed them.
       </p>
     </aside>

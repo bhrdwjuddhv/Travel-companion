@@ -1,75 +1,92 @@
-import { THEME } from '../../constants';
+import Reveal from '../../shared/Reveal';
+import { BENTO } from '../../constants';
 
-/** A readable panel floating over the pinned video. */
-export function Section({ children, className = '', strong = false }) {
+/** A full-height section that rides above the fixed backdrop. */
+export function Section({ children, id = undefined, className = '' }) {
   return (
-    <section className={`relative z-10 flex min-h-screen items-center justify-center px-5 py-24 ${className}`}>
-      <div
-        className="w-full max-w-5xl rounded-3xl border border-white/10 p-8 shadow-2xl backdrop-blur-md sm:p-12"
-        style={{ background: strong ? THEME.scrimStrong : THEME.scrim }}
-      >
-        {children}
-      </div>
+    <section id={id} className={`relative z-10 ui-section ${className}`}>
+      <div className="ui-measure">{children}</div>
     </section>
   );
 }
 
-export const SectionHead = ({ title, sub }) => (
-  <header className="mb-8">
-    <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: THEME.textOnMedia }}>
+export const SectionHeading = ({ eyebrow, title, subtitle, aside = null, className = '' }) => (
+  <Reveal className={`flex flex-wrap items-end justify-between gap-6 ${className}`}>
+    <div className="flex flex-col gap-3">
+      {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
+      <h2 className="ui-h2">{title}</h2>
+      {subtitle && <p className="ui-prose text-[length:var(--type-body)]">{subtitle}</p>}
+    </div>
+    {aside}
+  </Reveal>
+);
+
+/**
+ * A bento tile. Everything on the landing page is one of these: same glass,
+ * same radius, different span.
+ */
+export const BentoTile = ({ size = 'sm', index = 0, className = '', children }) => (
+  <Reveal delay={index} className={BENTO[size] ?? BENTO.sm}>
+    <div className={`ui-card flex h-full flex-col p-6 ${className}`}>{children}</div>
+  </Reveal>
+);
+
+export const FeatureTile = ({ title, body, size, index }) => (
+  <BentoTile size={size} index={index}>
+    <h3 className="text-[length:var(--type-h3)] font-medium" style={{ fontFamily: 'var(--type-display-family)' }}>
       {title}
-    </h2>
-    {sub && <p className="mt-2 max-w-2xl text-sm" style={{ color: THEME.textMutedOnMedia }}>{sub}</p>}
-  </header>
+    </h3>
+    <p className="ui-prose mt-3 text-[length:var(--type-body)]">{body}</p>
+  </BentoTile>
 );
 
-export const FeatureCard = ({ title, body }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-    <h3 className="text-sm font-medium" style={{ color: THEME.textOnMedia }}>{title}</h3>
-    <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.textMutedOnMedia }}>{body}</p>
-  </div>
-);
-
-export const ModeCard = ({ mode }) => (
-  <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5">
-    <span className="text-[11px] uppercase tracking-wider" style={{ color: THEME.originGreen }}>
-      {mode.tagline}
-    </span>
-    <h3 className="mt-1 text-base font-medium" style={{ color: THEME.textOnMedia }}>{mode.name}</h3>
-    <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.textMutedOnMedia }}>{mode.description}</p>
-    <ul className="mt-4 space-y-1.5 text-xs" style={{ color: THEME.textMutedOnMedia }}>
+export const ModeTile = ({ mode, index }) => (
+  <BentoTile size="sm" index={index}>
+    <div className="flex items-baseline justify-between gap-3">
+      <h3 className="text-[length:var(--type-h3)] font-medium" style={{ fontFamily: 'var(--type-display-family)' }}>
+        {mode.name}
+      </h3>
+      <span className="ui-eyebrow">{mode.tagline}</span>
+    </div>
+    <p className="ui-prose mt-3 text-[length:var(--type-small)]">{mode.description}</p>
+    <ul className="mt-auto flex flex-col gap-2 pt-4 text-[length:var(--type-small)] text-[var(--c-ink-dim)]">
       {mode.bullets.map((b) => (
-        <li key={b} className="flex items-center gap-2">
-          <span className="h-1 w-1 rounded-full" style={{ background: THEME.originGreen }} />
+        <li key={b} className="flex items-center gap-2.5">
+          <span className="h-1 w-1 shrink-0 rounded-full bg-[var(--c-ink-dim)]" />
           {b}
         </li>
       ))}
     </ul>
-  </div>
+  </BentoTile>
 );
 
-export const StepCard = ({ index, title, body }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+/**
+ * The three steps are a real sequence — a trip cannot be edited before it is
+ * planned — so this is the one place a number carries information.
+ */
+export const StepTile = ({ index, title, body }) => (
+  <BentoTile size="sm" index={index}>
     <span
-      className="grid h-7 w-7 place-items-center rounded-full text-xs font-semibold text-neutral-950"
-      style={{ background: THEME.originGreen }}
+      className="grid h-8 w-8 place-items-center rounded-full text-[length:var(--type-small)] font-medium"
+      style={{ background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }}
     >
-      {index}
+      {index + 1}
     </span>
-    <h3 className="mt-3 text-sm font-medium" style={{ color: THEME.textOnMedia }}>{title}</h3>
-    <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.textMutedOnMedia }}>{body}</p>
-  </div>
+    <h3 className="mt-5 text-[length:var(--type-h3)] font-medium" style={{ fontFamily: 'var(--type-display-family)' }}>
+      {title}
+    </h3>
+    <p className="ui-prose mt-2 text-[length:var(--type-small)]">{body}</p>
+  </BentoTile>
 );
 
-/** The one green button. Reports its centre so the transition can start there. */
-export const GreenCta = ({ children, onStart }) => (
+/** The one primary button. Reports its centre so the transition starts there. */
+export const PillButton = ({ children, onStart, variant = 'primary', className = '' }) => (
   <button
     onClick={(e) => {
       const r = e.currentTarget.getBoundingClientRect();
       onStart({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
     }}
-    className="rounded-full px-7 py-3 text-sm font-semibold text-neutral-950 transition hover:brightness-110"
-    style={{ background: THEME.originGreen, boxShadow: `0 0 40px ${THEME.originGreenEdge}` }}
+    className={`ui-btn ${variant === 'primary' ? 'ui-btn-primary' : 'ui-btn-ghost'} ${className}`}
   >
     {children}
   </button>

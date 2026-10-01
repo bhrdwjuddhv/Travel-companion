@@ -1,5 +1,4 @@
 import { X } from 'lucide-react';
-import { THEME } from '../../constants';
 
 const money = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
@@ -15,20 +14,23 @@ export default function EditContextChip({ context, onClose }) {
   if (!context) return null;
 
   return (
-    <div className="border-t border-neutral-200 px-3 py-2 dark:border-neutral-800">
+    <div className="border-t border-[var(--c-border)] px-3 py-2">
       <div className="flex items-center gap-2">
         <span
-          className="inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-xs"
-          style={{ borderColor: THEME.originGreenEdge, color: THEME.originGreen }}
+          className="inline-flex min-w-0 items-center gap-2 rounded-[var(--r-pill)] border px-3 py-1 text-[length:var(--type-small)]"
+          style={{ borderColor: 'var(--c-accent-edge)', color: 'var(--c-accent-text)' }}
         >
-          <span className="uppercase tracking-wide opacity-70">Editing</span>
-          <span className="truncate text-neutral-700 dark:text-neutral-200">{summarise(context)}</span>
+          <span className="opacity-70">Editing</span>
+          <span className="truncate text-[var(--c-ink)]">{summarise(context)}</span>
         </span>
-        <button onClick={onClose} className="ml-auto text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200">
+        <button
+          onClick={onClose}
+          aria-label="Stop editing this element"
+          className="ml-auto text-[var(--c-ink-muted)] transition-colors hover:text-[var(--c-ink)]"
+        >
           <X size={14} />
         </button>
       </div>
-
     </div>
   );
 }

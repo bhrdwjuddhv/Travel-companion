@@ -85,20 +85,26 @@ export default function TripNode({
       onPointerDown={onPointerDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="node-grow absolute cursor-grab select-none rounded-xl border shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
+      className="node-grow absolute cursor-grab select-none border shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
       style={{
         left: node.position.x,
         top: node.position.y,
         width: CANVAS.nodeWidth,
         minHeight: CANVAS.nodeHeight,
         background: palette.nodeBg,
+        // The node's colour belongs to its icon, not to a stripe down its side.
         borderColor: isOrigin ? colour : palette.nodeBorder,
-        borderLeft: `3px solid ${colour}`,
+        borderRadius: 'var(--r-md)',
         animationDelay: `${node.data?.growDelayMs ?? 0}ms`,
       }}
     >
       <div className="flex items-start gap-2.5 px-3 py-2.5">
-        <Icon size={16} strokeWidth={2} style={{ color: colour }} className="mt-0.5 shrink-0" />
+        <span
+          className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-[var(--r-sm)]"
+          style={{ background: `color-mix(in oklab, ${colour} 16%, transparent)`, color: colour }}
+        >
+          <Icon size={14} strokeWidth={2} />
+        </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium" style={{ color: palette.text }} title={title}>
             {title}
@@ -144,7 +150,8 @@ export default function TripNode({
               <button
                 onClick={() => semi.onRemoveActivity(node.data.id)}
                 title="Remove"
-                className="mt-2 grid h-7 w-7 shrink-0 place-items-center rounded-md border"
+                aria-label="Remove this stop"
+                className="mt-2 grid h-7 w-7 shrink-0 place-items-center rounded-[var(--r-sm)] border"
                 style={{ borderColor: palette.nodeBorder, color: palette.textMuted }}
               >
                 <X size={12} />
@@ -199,11 +206,12 @@ export default function TripNode({
 const IconButton = ({ palette, title, onClick, children }) => (
   <button
     title={title}
+    aria-label={title}
     onClick={(e) => {
       e.stopPropagation();
       onClick();
     }}
-    className="grid h-5 w-5 place-items-center rounded border transition hover:opacity-70"
+    className="grid h-6 w-6 place-items-center rounded-[var(--r-sm)] border transition hover:opacity-70"
     style={{ borderColor: palette.nodeBorder, background: palette.nodeBg, color: palette.textMuted }}
   >
     {children}
@@ -215,7 +223,7 @@ const Picker = ({ palette, placeholder, options, onPick }) => (
     value=""
     onChange={(e) => e.target.value !== '' && onPick(Number(e.target.value))}
     onPointerDown={(e) => e.stopPropagation()}
-    className="mt-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none"
+    className="mt-2 w-full rounded-[var(--r-sm)] border px-2 py-1.5 text-[11px] outline-none"
     style={{ borderColor: palette.nodeBorder, background: palette.nodeBg, color: palette.text }}
   >
     <option value="">{placeholder}</option>

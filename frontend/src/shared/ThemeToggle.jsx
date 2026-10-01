@@ -11,23 +11,26 @@ export default function ThemeToggle() {
   const [preference, choose] = useThemePreference();
 
   return (
-    <div className="flex overflow-hidden rounded-full border border-neutral-300 dark:border-neutral-700">
-      {OPTIONS.map(([id, Icon, label]) => (
-        <button
-          key={id}
-          onClick={() => choose(id)}
-          title={label}
-          aria-label={label}
-          aria-pressed={preference === id}
-          className={`grid h-9 w-9 place-items-center transition ${
-            preference === id
-              ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-              : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
-          }`}
-        >
-          <Icon size={13} />
-        </button>
-      ))}
+    <div className="flex overflow-hidden rounded-[var(--r-pill)] border border-[var(--c-border-strong)]">
+      {OPTIONS.map(([id, Icon, label]) => {
+        const active = preference === id;
+        return (
+          <button
+            key={id}
+            onClick={() => choose(id)}
+            title={label}
+            aria-label={label}
+            aria-pressed={active}
+            className="grid h-9 w-9 place-items-center transition-colors duration-150"
+            style={{
+              background: active ? 'var(--c-accent)' : 'transparent',
+              color: active ? 'var(--c-accent-ink)' : 'var(--c-ink-muted)',
+            }}
+          >
+            <Icon size={13} />
+          </button>
+        );
+      })}
     </div>
   );
 }

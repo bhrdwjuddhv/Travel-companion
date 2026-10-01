@@ -160,6 +160,33 @@ export const TripPlan = z.object({
 
 const isoDate = z.string().refine(isIsoDate, 'Expected a YYYY-MM-DD date');
 
+/**
+ * What the hero prompt bar extracts from free text. Same fields and the same
+ * enums as TripInput, but every one is nullable: whatever the sentence didn't
+ * say stays blank for the user to fill in. Nullable, never optional — the
+ * Agents SDK emits strict JSON Schema, where every key must be present.
+ *
+ * No `.min()`, `.max()` or `.positive()` here either: strict JSON Schema
+ * rejects the keywords those compile to. Ranges and lengths are enforced after
+ * the call, in planner.extract.js, where an out-of-range value becomes a blank
+ * field rather than a failed request.
+ */
+export const TripExtraction = z.object({
+  origin: z.string().nullable(),
+  primaryDestination: z.string().nullable(),
+  additionalDestinations: z.array(z.string()).nullable(),
+  startDate: z.string().nullable().describe('YYYY-MM-DD'),
+  endDate: z.string().nullable().describe('YYYY-MM-DD'),
+  direction: z.enum(['round', 'oneway']).nullable(),
+  budgetTotal: z.number().nullable().describe('INR, whole trip'),
+  budgetTier: z.enum(['budget', 'balanced', 'premium']).nullable(),
+  preferredTransport: z.enum(['train', 'bus', 'flight', 'car', 'any']).nullable(),
+  travellerCount: z.number().nullable(),
+  interests: z.array(z.string()).nullable(),
+  accommodationPreference: z.enum(['hotel', 'hostel', 'homestay', 'budget', 'any']).nullable(),
+  specialRequests: z.string().nullable(),
+});
+
 const TripInputFields = z.object({
   origin: z.string().min(2),
   primaryDestination: z.string().min(2),

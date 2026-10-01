@@ -2,9 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
-import { applyThemeVars, initTheme } from './shared/theme';
+import { initTheme } from './shared/theme';
 
-applyThemeVars();
 initTheme();
 
 createRoot(document.getElementById('root')).render(

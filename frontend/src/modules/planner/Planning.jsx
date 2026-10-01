@@ -8,7 +8,7 @@ import TripCanvas from '../graph/TripCanvas';
 import BudgetPanel from '../budget/BudgetPanel';
 import { postSSE } from '../../shared/sse';
 import { api } from '../../shared/api';
-import { FEATURES, LIMITS, STEP_LABELS, THEME } from '../../constants';
+import { FEATURES, LIMITS, STEP_LABELS } from '../../constants';
 
 /** Applies one `{ target, data }` patch to the live plan. */
 const applyPatch = (plan, { target, data, label }) => {
@@ -32,7 +32,7 @@ const applyPatch = (plan, { target, data, label }) => {
 
 export default function Planning() {
   const navigate = useNavigate();
-  const arrivedFromGreen = useLocation().state?.fromGreen;
+  const { fromAccent, prefill } = useLocation().state ?? {};
 
   const [step, setStep] = useState('mode'); // mode | input | building
   const [mode, setMode] = useState('auto');
@@ -136,11 +136,11 @@ export default function Planning() {
       : null);
 
   return (
-    <main className="relative min-h-screen bg-neutral-950 text-neutral-100">
-      {arrivedFromGreen && (
+    <main className="relative min-h-screen bg-[var(--c-bg)] text-[var(--c-ink)]">
+      {fromAccent && (
         <div
-          className="green-settle pointer-events-none fixed inset-0 z-50"
-          style={{ background: THEME.originGreen, '--wipe-ms': `${FEATURES.transitionMs}ms` }}
+          className="accent-settle pointer-events-none fixed inset-0 z-50"
+          style={{ background: 'var(--c-accent)', '--wipe-ms': `${FEATURES.transitionMs}ms` }}
         />
       )}
 
@@ -158,7 +158,7 @@ export default function Planning() {
 
       {step === 'input' && (
         <Centered>
-          <TripInputPanel mode={mode} onGenerate={run} onCancel={() => setStep('mode')} />
+          <TripInputPanel mode={mode} prefill={prefill} onGenerate={run} onCancel={() => setStep('mode')} />
         </Centered>
       )}
 
@@ -171,7 +171,7 @@ export default function Planning() {
             </div>
           )}
           <div
-            className={`min-h-0 w-full shrink-0 border-neutral-800 ${
+            className={`min-h-0 w-full shrink-0 border-[var(--c-border)] ${
               livePlan ? 'border-t lg:w-96 lg:border-l lg:border-t-0' : 'mx-auto max-w-lg'
             }`}
           >
@@ -217,9 +217,12 @@ function LiveStrip({ progress, error, onRetry, busy }) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-between gap-4 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-xs text-amber-300">
+      <div
+        className="flex items-center justify-between gap-4 border-b px-5 py-2 text-[length:var(--type-small)]"
+        style={{ borderColor: 'var(--c-border)', background: 'var(--c-warn-soft)', color: 'var(--c-warn)' }}
+      >
         <span>{error.message}</span>
-        <button onClick={onRetry} className="rounded-full border border-amber-400/50 px-3 py-1 text-amber-200">
+        <button onClick={onRetry} className="ui-btn ui-btn-ghost ui-btn-sm">
           {error.recoverable === false ? 'Start over' : 'Retry'}
         </button>
       </div>
@@ -227,18 +230,18 @@ function LiveStrip({ progress, error, onRetry, busy }) {
   }
 
   return (
-    <div className="border-b border-neutral-800 px-5 py-2">
-      <div className="flex items-center gap-3 text-xs text-neutral-400">
+    <div className="border-b border-[var(--c-border)] px-5 py-2">
+      <div className="flex items-center gap-3 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
         <span
           className={`h-1.5 w-1.5 rounded-full ${progress.step === 'done' ? '' : 'animate-pulse'}`}
-          style={{ background: THEME.originGreen }}
+          style={{ background: 'var(--c-accent)' }}
         />
         {busy ? 'Applying your choice…' : (progress.label ?? 'Sketching the route')}
       </div>
-      <div className="mt-2 h-0.5 rounded bg-neutral-900">
+      <div className="mt-2 h-0.5 rounded bg-[var(--c-surface-hover)]">
         <div
           className="h-0.5 rounded transition-[width] duration-700 ease-out"
-          style={{ width: `${Math.max(pct, 6)}%`, background: THEME.originGreen }}
+          style={{ width: `${Math.max(pct, 6)}%`, background: 'var(--c-accent)' }}
         />
       </div>
     </div>

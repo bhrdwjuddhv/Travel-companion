@@ -6,6 +6,10 @@ import { EXPORT } from '../../constants';
 export const slugify = (s) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'trip';
 
+/** The current theme's panel colour, falling back to the dark default. */
+const captureBackground = () =>
+  getComputedStyle(document.documentElement).getPropertyValue('--c-bg-alt').trim() || EXPORT.backgroundColor;
+
 const download = (href, filename) => {
   const link = document.createElement('a');
   link.href = href;
@@ -26,7 +30,9 @@ export async function exportPdf(dayNodes, tripName) {
   for (const node of dayNodes) {
     const dataUrl = await toPng(node, {
       pixelRatio: EXPORT.pixelRatio,
-      backgroundColor: EXPORT.backgroundColor,
+      // Capture on whatever the page is actually showing, so a light-mode
+      // export isn't a dark card with light text burned into it.
+      backgroundColor: captureBackground(),
       cacheBust: true,
     });
     const { width, height } = await imageSize(dataUrl);

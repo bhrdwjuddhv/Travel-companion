@@ -1,90 +1,171 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ScrollSequence from './ScrollSequence';
-import { Section, SectionHead, FeatureCard, ModeCard, StepCard, GreenCta } from './cards.jsx';
-import { LANDING, PLANNING_MODES, THEME, FEATURES, IMAGE_SEQUENCE } from '../../constants';
+import { Lock } from 'lucide-react';
+import VideoBackdrop from './VideoBackdrop';
+import HeroPrompt from './HeroPrompt';
+import DestinationBento from './DestinationBento';
+import { Section, SectionHeading, BentoTile, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
+import Reveal from '../../shared/Reveal';
+import { FEATURES, LANDING, PLANNING_MODES } from '../../constants';
 
 export default function Landing() {
   const navigate = useNavigate();
   const [wipeFrom, setWipeFrom] = useState(null);
+  const [promptText, setPromptText] = useState('');
+  const heroRef = useRef(null);
 
-  // The transition starts at the CTA and lands on /planning still green.
-  const start = (origin) => {
+  // The transition starts wherever it was triggered and lands on /planning
+  // still lit.
+  const go = (origin, state = {}) => {
     setWipeFrom(origin);
-    setTimeout(() => navigate('/planning', { state: { fromGreen: true } }), FEATURES.transitionMs);
+    setTimeout(() => navigate('/planning', { state: { fromAccent: true, ...state } }), FEATURES.transitionMs);
+  };
+
+  const centreOf = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+
+  // Extraction done: carry whatever was found into the form. Nothing found
+  // (or it failed) just opens the form empty, which is the old path.
+  const onExtracted = (fields, formEl) => go(centreOf(formEl), { prefill: fields ?? null });
+
+  const pickDestination = (text) => {
+    setPromptText(text);
+    heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   return (
-    <div className="relative" style={{ minHeight: `${IMAGE_SEQUENCE.pageMinHeightVh}vh` }}>
-      <ScrollSequence />
+    <div id="top" className="relative min-h-screen overflow-x-clip bg-[var(--c-bg)] text-[var(--c-ink)]">
+      <VideoBackdrop />
 
-      {/* Hero */}
-      <Section strong>
-        <p className="text-xs uppercase tracking-[0.2em]" style={{ color: THEME.originGreen }}>
+      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-4 px-6 py-6 md:px-10 md:py-8">
+        <a href="#top" className="text-[17px] font-semibold tracking-tight">
           {LANDING.productName}
-        </p>
-        <h1
-          className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl"
-          style={{ color: THEME.textOnMedia }}
-        >
-          {LANDING.hero.headline}
-        </h1>
-        <p className="mt-5 max-w-xl text-base leading-relaxed" style={{ color: THEME.textMutedOnMedia }}>
-          {LANDING.hero.sub}
-        </p>
-        <div className="mt-9">
-          <GreenCta onStart={start}>{LANDING.hero.cta}</GreenCta>
-        </div>
-      </Section>
+          <sup className="text-[10px] opacity-70">{LANDING.trademark}</sup>
+        </a>
+        <PillButton onStart={(o) => go(o)} variant="ghost" className="ui-btn-sm">
+          {LANDING.footer.cta}
+        </PillButton>
+      </header>
 
-      {/* Features */}
-      <Section>
-        <SectionHead title={LANDING.features.title} />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {LANDING.features.items.map((f) => (
-            <FeatureCard key={f.title} {...f} />
-          ))}
-        </div>
-      </Section>
+      <div className="relative z-10">
+        {/* Hero */}
+        <section className="relative flex min-h-screen flex-col items-center justify-center px-6 py-28 text-center">
+          <div ref={heroRef} className="ui-measure flex flex-col items-center">
+            <Reveal as="h1" className="ui-display max-w-4xl">
+              <span className="block">{LANDING.hero.headline[0]}</span>
+              <span className="block text-[var(--c-ink-dim)]">{LANDING.hero.headline[1]}</span>
+            </Reveal>
 
-      {/* Three planning modes */}
-      <Section>
-        <SectionHead title={LANDING.modes.title} sub={LANDING.modes.sub} />
-        <div className="grid gap-4 lg:grid-cols-3">
-          {PLANNING_MODES.map((m) => (
-            <ModeCard key={m.id} mode={m} />
-          ))}
-        </div>
-      </Section>
+            <Reveal delay={1} className="mt-7 max-w-[620px] text-[length:var(--type-body)] leading-relaxed">
+              {LANDING.hero.paragraph.lead}
+              <span className="text-[var(--c-ink-dim)]">{LANDING.hero.paragraph.muted}</span>
+            </Reveal>
 
-      {/* How it works */}
-      <Section>
-        <SectionHead title={LANDING.howItWorks.title} />
-        <div className="grid gap-4 sm:grid-cols-3">
-          {LANDING.howItWorks.steps.map((s, i) => (
-            <StepCard key={s.title} index={i + 1} {...s} />
-          ))}
-        </div>
-      </Section>
+            <Reveal delay={2} className="mt-10 w-full max-w-3xl">
+              <HeroPrompt value={promptText} onChange={setPromptText} onExtracted={onExtracted} />
+            </Reveal>
 
-      {/* Footer CTA */}
-      <Section strong>
-        <div className="flex flex-col items-start gap-7">
-          <h2
-            className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-4xl"
-            style={{ color: THEME.textOnMedia }}
-          >
-            {LANDING.footer.headline}
-          </h2>
-          <GreenCta onStart={start}>{LANDING.footer.cta}</GreenCta>
-        </div>
-      </Section>
+            <Reveal delay={3} className="mt-8 flex items-center gap-2 text-[var(--c-ink-dim)]">
+              <Lock size={13} aria-hidden="true" />
+              <span className="ui-eyebrow">{LANDING.hero.assurance}</span>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Destinations */}
+        <Section>
+          <SectionHeading {...LANDING.destinations} className="mb-12" />
+          <DestinationBento onPick={pickDestination} />
+        </Section>
+
+        {/* What you get */}
+        <Section>
+          <SectionHeading eyebrow={LANDING.features.eyebrow} title={LANDING.features.title} className="mb-12" />
+          <div className="ui-bento">
+            {LANDING.features.items.map((f, i) => (
+              <FeatureTile key={f.title} {...f} index={i} />
+            ))}
+          </div>
+        </Section>
+
+        {/* Three planning modes */}
+        <Section>
+          <SectionHeading
+            eyebrow={LANDING.modes.eyebrow}
+            title={LANDING.modes.title}
+            subtitle={LANDING.modes.subtitle}
+            className="mb-12"
+          />
+          <div className="ui-bento">
+            {PLANNING_MODES.map((m, i) => (
+              <ModeTile key={m.id} mode={m} index={i} />
+            ))}
+            <BentoTile size="sm" index={PLANNING_MODES.length} className="justify-end">
+              <p className="ui-prose text-[length:var(--type-small)]">
+                Not sure? Fully AI is the fastest, and everything it chooses can be swapped afterwards.
+              </p>
+            </BentoTile>
+          </div>
+        </Section>
+
+        {/* How it works */}
+        <Section>
+          <SectionHeading
+            eyebrow={LANDING.howItWorks.eyebrow}
+            title={LANDING.howItWorks.title}
+            className="mb-12"
+          />
+          <div className="ui-bento">
+            {LANDING.howItWorks.steps.map((s, i) => (
+              <StepTile key={s.title} index={i} {...s} />
+            ))}
+            <BentoTile size="sm" index={3} className="justify-end">
+              <p className="ui-prose text-[length:var(--type-small)]">
+                Fares come from rail and maps providers. Anything we could not confirm is labelled an estimate.
+              </p>
+            </BentoTile>
+          </div>
+        </Section>
+
+        {/* Footer CTA */}
+        <section className="relative z-10 px-6 py-16 md:px-10">
+          <Reveal className="ui-measure">
+            <div className="ui-card">
+              <div className="bg-gradient-to-b from-white/[0.07] to-transparent px-8 py-16 text-center md:px-16 md:py-24">
+                <h2 className="mx-auto max-w-3xl" style={{ fontSize: 'var(--type-h1)' }}>
+                  {LANDING.footer.title}
+                </h2>
+                <p className="mx-auto mt-5 max-w-[540px] text-[length:var(--type-body)] leading-relaxed text-[var(--c-ink-dim)]">
+                  {LANDING.footer.subtitle}
+                </p>
+                <div className="mt-9 flex justify-center">
+                  <PillButton onStart={(o) => go(o)}>{LANDING.footer.cta}</PillButton>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
+        <footer className="relative z-10 px-6 pb-12 md:px-10">
+          <div className="ui-measure flex flex-wrap items-center justify-between gap-4 border-t border-[var(--c-border)] pt-8">
+            <span className="text-[17px] font-semibold tracking-tight">
+              {LANDING.productName}
+              <sup className="text-[10px] opacity-70">{LANDING.trademark}</sup>
+            </span>
+            <p className="max-w-[420px] text-[length:var(--type-small)] text-[var(--c-ink-dim)]">
+              {LANDING.footer.note}
+            </p>
+          </div>
+        </footer>
+      </div>
 
       {wipeFrom && (
         <div className="pointer-events-none fixed inset-0 z-50" style={{ '--wipe-ms': `${FEATURES.transitionMs}ms` }}>
           <span
-            className="green-wipe absolute block h-6 w-6 rounded-full"
-            style={{ left: wipeFrom.x, top: wipeFrom.y, background: THEME.originGreen }}
+            className="accent-wipe absolute block h-6 w-6 rounded-full"
+            style={{ left: wipeFrom.x, top: wipeFrom.y, background: 'var(--c-accent)' }}
           />
         </div>
       )}

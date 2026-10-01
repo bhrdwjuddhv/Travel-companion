@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Maximize2, Minus, Plus } from 'lucide-react';
-import { CANVAS, CANVAS_THEME, NODE_COLORS, THEME } from '../../constants';
+import { CANVAS, CANVAS_THEME, NODE_COLORS } from '../../constants';
 import { useColorMode } from '../../shared/theme';
 import TripNode from './nodes/TripNode.jsx';
 
@@ -215,7 +215,7 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
                 key={e.id}
                 d={edgePath(byId[e.source], byId[e.target])}
                 fill="none"
-                stroke={fromOrigin ? THEME.originGreen : transport ? palette.edgeTransport : palette.edge}
+                stroke={fromOrigin ? NODE_COLORS.origin : transport ? palette.edgeTransport : palette.edge}
                 strokeWidth={transport ? 2 : 1.25}
                 strokeDasharray={e.type === 'local' ? '5 5' : undefined}
                 strokeLinecap="round"
@@ -232,7 +232,7 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
           return (
             <span
               key={`label-${e.id}`}
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-pill)] border px-2.5 py-1 text-[11px] font-medium backdrop-blur-sm"
               style={{
                 left: (x1 + x2) / 2,
                 top: (y1 + y2) / 2,
@@ -264,8 +264,10 @@ export default function TripCanvas({ plan, semi = null, onEdit = null, onLayoutC
         ))}
       </div>
 
-      <div className="absolute bottom-4 right-4 flex flex-col overflow-hidden rounded-lg border shadow-sm"
-           style={{ borderColor: palette.nodeBorder, background: palette.nodeBg }}>
+      <div
+        className="absolute bottom-4 right-4 flex flex-col overflow-hidden rounded-[var(--r-md)] border shadow-sm"
+        style={{ borderColor: palette.nodeBorder, background: palette.nodeBg }}
+      >
         <CanvasButton onClick={() => zoomBy(1.2)} title="Zoom in" palette={palette}><Plus size={14} /></CanvasButton>
         <CanvasButton onClick={() => zoomBy(1 / 1.2)} title="Zoom out" palette={palette}><Minus size={14} /></CanvasButton>
         <CanvasButton onClick={fit} title="Fit to screen" palette={palette}><Maximize2 size={14} /></CanvasButton>
@@ -278,6 +280,7 @@ const CanvasButton = ({ onClick, title, palette, children }) => (
   <button
     onClick={onClick}
     title={title}
+    aria-label={title}
     onPointerDown={(e) => e.stopPropagation()}
     className="grid h-9 w-9 place-items-center border-b transition last:border-b-0 hover:opacity-70"
     style={{ borderColor: palette.nodeBorder, color: palette.textMuted }}
