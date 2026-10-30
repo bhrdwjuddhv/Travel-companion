@@ -1,4 +1,4 @@
-import { Agent, run, tool, InputGuardrailTripwireTriggered } from '@openai/agents';
+import { Agent, tool, InputGuardrailTripwireTriggered } from '@openai/agents';
 import { z } from 'zod';
 import { MODELS, TIMEOUTS_MS } from '../../constants.js';
 import { logger, now, since } from '../../shared/logger.js';
@@ -6,6 +6,8 @@ import { HttpError } from '../../shared/errors.js';
 import { travelScopeGuardrail } from '../../guardrails/guardrails.js';
 import { applyMutation } from '../planner/planner.mutations.js';
 import { getTrip, appendVersion } from '../trip/trip.service.js';
+import { capture, captureDegradation, runTraced } from '../../config/posthog.js';
+import { newTraceId, withTrace } from '../../shared/trace.js';
 
 const log = logger('chat');
 
@@ -145,7 +147,10 @@ const timeout = (ms) =>
  * One chat turn. The saved version is read fresh here — the client's copy is
  * never trusted for a write — and only a real change writes a new version.
  */
-export async function editByChat({ tripId, ownerKey, message, editContext }) {
+export const editByChat = (args) =>
+  withTrace({ traceId: newTraceId(), ownerKey: args.ownerKey }, () => runChatEdit(args));
+
+async function runChatEdit({ tripId, ownerKey, message, editContext }) {
   const began = now();
   const trip = await getTrip(tripId, ownerKey);
   if (!trip.plan) throw new HttpError(409, 'This trip has no plan to edit yet.');
@@ -176,9 +181,13 @@ export async function editByChat({ tripId, ownerKey, message, editContext }) {
 
   let result;
   try {
-    result = await Promise.race([run(agent, prompt), timeout(TIMEOUTS_MS.llm)]);
+    result = await Promise.race([
+      runTraced(agent, prompt, { workflowName: 'Trip chat edit', ownerKey, groupId: tripId }),
+      timeout(TIMEOUTS_MS.llm),
+    ]);
   } catch (e) {
     if (e instanceof InputGuardrailTripwireTriggered) {
+      captureDegradation('guardrail_blocked', { ownerKey, surface: 'chat', trip_id: tripId });
       throw new HttpError(400, "I can only help with this trip — try asking about the route, stays, days or budget.");
     }
     throw e;
@@ -189,6 +198,7 @@ export async function editByChat({ tripId, ownerKey, message, editContext }) {
   // A question changes nothing, so it must not create a version.
   if (!state.applied.length) {
     log.info(`answered in ${since(began)} (no mutation)`);
+    capture(ownerKey, 'trip question answered', { trip_id: tripId });
     return { changed: false, summary: out.summary, versionNumber: trip.versionNumber, plan: trip.plan };
   }
 
@@ -199,6 +209,11 @@ export async function editByChat({ tripId, ownerKey, message, editContext }) {
     plan: state.plan,
   });
   log.info(`applied ${state.applied.map((a) => a.tool).join(', ')} in ${since(began)}`);
+  capture(ownerKey, 'trip edited by chat', {
+    trip_id: tripId,
+    tools: state.applied.map((a) => a.tool),
+    version: saved.versionNumber,
+  });
 
   return {
     changed: true,

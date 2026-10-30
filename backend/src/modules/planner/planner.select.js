@@ -1,7 +1,8 @@
-import { Agent, run, webSearchTool, setDefaultOpenAIKey } from '@openai/agents';
+import { Agent, webSearchTool, setDefaultOpenAIKey } from '@openai/agents';
 import { z } from 'zod';
 import { ENV, MODELS, TIMEOUTS_MS } from '../../constants.js';
 import { logger, now, since } from '../../shared/logger.js';
+import { runTraced } from '../../config/posthog.js';
 
 setDefaultOpenAIKey(ENV.OPENAI_API_KEY);
 const log = logger('planner');
@@ -36,9 +37,9 @@ Rules:
 const timeout = (ms, what) =>
   new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms}ms`)), ms));
 
-async function runAgent(agent, prompt, ms, model) {
+async function runAgent(agent, prompt, ms, model, trace = {}) {
   const began = now();
-  const result = await Promise.race([run(agent, prompt), timeout(ms, 'LLM call')]);
+  const result = await Promise.race([runTraced(agent, prompt, trace), timeout(ms, 'LLM call')]);
   log.info(`llm ${model} ${since(began)}`);
   return result.finalOutput;
 }
@@ -108,7 +109,7 @@ function fallbackSelection({ legs, staysByDest, attractionsByDest, dayAssignment
 }
 
 /** One structured call on the fast model. Falls back rather than failing. */
-export async function selectPlan(context) {
+export async function selectPlan(context, { ownerKey = null, tripId = null } = {}) {
   const agent = new Agent({
     name: 'Trip selector',
     model: MODELS.PLANNER_FAST,
@@ -117,14 +118,19 @@ export async function selectPlan(context) {
   });
 
   try {
-    const out = await runAgent(agent, buildPrompt(context), TIMEOUTS_MS.llm, MODELS.PLANNER_FAST);
+    const out = await runAgent(agent, buildPrompt(context), TIMEOUTS_MS.llm, MODELS.PLANNER_FAST, {
+      workflowName: 'Trip selection',
+      ownerKey,
+      groupId: tripId,
+    });
     const parsed = Selection.safeParse(out);
     if (parsed.success) return parsed.data;
     log.warn(`selection failed validation, using ranked picks: ${parsed.error.issues[0]?.message}`);
+    return { ...fallbackSelection(context), fallback: `invalid output: ${parsed.error.issues[0]?.message}` };
   } catch (e) {
     log.warn(`selection unavailable, using ranked picks: ${e.message}`);
+    return { ...fallbackSelection(context), fallback: e.message };
   }
-  return fallbackSelection(context);
 }
 
 const Gems = z.object({
@@ -142,7 +148,7 @@ const Gems = z.object({
  * Hidden gems come from live web search, which is the slowest thing in the
  * pipeline — so it runs alongside everything else and patches in afterwards.
  */
-export async function researchHiddenGems({ destinations, interests }) {
+export async function researchHiddenGems({ destinations, interests, ownerKey = null }) {
   const agent = new Agent({
     name: 'Hidden gem researcher',
     model: MODELS.PLANNER_FAST,
@@ -162,6 +168,9 @@ export async function researchHiddenGems({ destinations, interests }) {
     .filter(Boolean)
     .join('\n');
 
-  const out = await runAgent(agent, prompt, TIMEOUTS_MS.webSearch, `${MODELS.PLANNER_FAST}+websearch`);
+  const out = await runAgent(agent, prompt, TIMEOUTS_MS.webSearch, `${MODELS.PLANNER_FAST}+websearch`, {
+    workflowName: 'Hidden gem research',
+    ownerKey,
+  });
   return Gems.parse(out).gems;
 }

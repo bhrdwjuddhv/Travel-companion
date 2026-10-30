@@ -17,6 +17,11 @@ export const LocalTransport = z.object({
   fareType: z.literal('estimate'),
 });
 
+const PlacePhoto = z
+  .object({ ref: z.string(), attribution: z.string().nullish().default(null) })
+  .nullish()
+  .default(null);
+
 const segmentFields = {
   id: z.string(),
   fromPlace: z.string(),
@@ -54,6 +59,12 @@ const accommodationFields = {
   // up. nullish, not nullable: plans saved before the map existed have no key.
   lat: z.number().nullish().default(null),
   lng: z.number().nullish().default(null),
+  // Where to read more about the stay, when the provider gives a link.
+  url: z.string().nullish().default(null),
+  // The place's own photo, as a reference the photo route turns into an image.
+  photo: PlacePhoto,
+  // One line explaining how the nightly figure was reached, for the "est." tag.
+  priceBasis: z.string().nullish().default(null),
   distanceToKeyPlacesKm: z.number().nullable(),
   source: z.string(),
   timestamp: z.string(),
@@ -83,6 +94,7 @@ export const Activity = z.object({
   ticketCost: z.number().nullable().describe('per person, INR, 0 if free'),
   costType: PriceType.nullable(),
   isHiddenGem: z.boolean().nullable(),
+  photo: PlacePhoto,
   lat: z.number().nullish().default(null),
   lng: z.number().nullish().default(null),
   localTransportFromPrev: LocalTransport.nullable(),

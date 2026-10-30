@@ -1,7 +1,8 @@
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { resolveLocation } from '../places/geocode.service.js';
-import { searchStays, searchAttractions } from '../places/places.service.js';
+import { searchAttractions } from '../places/places.service.js';
+import { findStays } from '../hotels/hotels.service.js';
 import { getTransportOptions, localHop } from '../transport/transport.service.js';
 import { computeRoute } from '../transport/googleEstimator.provider.js';
 
@@ -66,7 +67,7 @@ export function researchTools(emit) {
       }),
       execute: safe(({ destination, ...opts }) => {
         step('researching_stays', `Looking for stays in ${destination}…`);
-        return searchStays(destination, opts);
+        return findStays(destination, opts);
       }),
     }),
 

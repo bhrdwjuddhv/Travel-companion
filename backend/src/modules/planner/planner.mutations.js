@@ -5,8 +5,9 @@ import { HttpError, badRequest, notFound } from '../../shared/errors.js';
 import { TripPlan } from '../../schemas/trip.schema.js';
 import { parseOrThrow } from '../../shared/validate.js';
 import { getTransportOptions } from '../transport/transport.service.js';
-import { searchStays, searchAttractions } from '../places/places.service.js';
-import { computeBudget } from '../budget/budget.service.js';
+import { searchAttractions } from '../places/places.service.js';
+import { findStays } from '../hotels/hotels.service.js';
+import { computeBudget, tierOf } from '../budget/budget.service.js';
 import { buildGraph } from '../graph/graph.builder.js';
 import { newId, toAccommodation, toActivity, rehop } from './planner.assemble.js';
 
@@ -73,9 +74,11 @@ async function replace_accommodation(plan, input, { stayId, alternativeIndex = n
     if (!candidate) throw badRequest(`Stay ${stayId} has no alternative ${alternativeIndex}`);
     alternatives = [old, ...old.alternatives.filter((_, k) => k !== alternativeIndex)];
   } else {
-    const found = await searchStays(old.destination, {
+    const found = await findStays(old.destination, {
       preference: constraints.type ?? input.accommodationPreference ?? 'any',
       maxPricePerNight: constraints.maxPricePerNight ?? null,
+      nights: old.nights,
+      tier: tierOf(input),
     });
     if (!found.length) throw new HttpError(422, `No other stays found in ${old.destination}`);
     [candidate, ...alternatives] = found;

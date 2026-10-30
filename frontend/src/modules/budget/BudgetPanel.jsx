@@ -63,7 +63,7 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
   const reset = () => setTargets(startingTargets(budget));
 
   return (
-    <aside className="w-full shrink-0 overflow-y-auto border-t border-[var(--c-border)] bg-[var(--c-bg-alt)] p-5 lg:w-80 lg:border-l lg:border-t-0">
+    <aside className="scroll-quiet flex h-full w-full flex-col overflow-y-auto px-5 pb-5 pt-2">
       <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">Estimated total</p>
       <p className="mb-1 text-3xl font-semibold tracking-tight tabular-nums">{money(budget.total, budget.currency)}</p>
 
@@ -84,7 +84,7 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
         </p>
       )}
 
-      <ul className="mt-5 space-y-4">
+      <ul className="mt-5 flex flex-1 flex-col justify-evenly gap-3">
         {ROWS.map(([key, name, adjustable]) => {
           const band = bands?.[key];
           const value = targets[key] ?? budget[key];
@@ -136,7 +136,7 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
       </ul>
 
       {tripId && bands && (
-        <div className="mt-5 flex gap-2">
+        <div className="mt-auto flex gap-2 pt-5">
           <button
             onClick={generate}
             disabled={busy}
@@ -162,10 +162,8 @@ export default function BudgetPanel({ budget, verdict, tripId = null, versionNum
         </p>
       )}
 
-      <p className="mt-5 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
+      <p className="mt-4 text-[length:var(--type-micro)] leading-relaxed text-[var(--c-ink-dim)]">
         Re-fitting trades between options already researched, so it costs nothing and takes no time.
-      </p>
-      <p className="mt-2 text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
         Fares and room rates are estimates unless a provider confirmed them.
       </p>
     </aside>

@@ -69,6 +69,7 @@ export function tripPoints(plan, input) {
           rating: stay.rating,
           price: stay.pricePerNight,
           priceType: stay.priceType,
+          priceBasis: stay.priceBasis ?? null,
           nights: stay.nights,
           placeId: stay.placeId,
           lat: at.lat,

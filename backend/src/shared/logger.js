@@ -32,3 +32,6 @@ export function logger(tag) {
 
 export const now = () => process.hrtime.bigint();
 export const since = ms;
+
+/** The same elapsed time as `since`, as a plain number for metrics. */
+export const elapsedMs = (start) => Math.round(Number(process.hrtime.bigint() - start) / 1e6);

@@ -42,6 +42,7 @@ function describe(node, inboundSegment) {
           : [`${money(d.pricePerNight)}/night${d.priceType === 'estimate' ? ' est' : ''}`, `${d.nights}n`, d.rating ? `${d.rating}★` : null]
               .filter(Boolean)
               .join(' · '),
+        metaTitle: d.priceBasis ?? null,
         place: { name: d.name, placeId: d.placeId, destination: d.destination },
       };
     case 'day':
@@ -69,7 +70,7 @@ export default function TripNode({
 }) {
   const [hover, setHover] = useState(false);
   const [open, setOpen] = useState(false);
-  const { Icon, title, meta, detail, place } = describe(node, inboundSegment);
+  const { Icon, title, meta, metaTitle, detail, place } = describe(node, inboundSegment);
 
   const isOrigin = node.type === 'origin' || node.type === 'return';
   const colour = node.data?.isHiddenGem ? NODE_COLORS.hidden_gem : accent;
@@ -113,7 +114,11 @@ export default function TripNode({
             {title}
           </p>
           {meta && (
-            <p className="mt-1 truncate" style={{ color: palette.textMuted, fontSize: CANVAS.type.meta }}>
+            <p
+              className="mt-1 truncate"
+              style={{ color: palette.textMuted, fontSize: CANVAS.type.meta }}
+              title={metaTitle ?? undefined}
+            >
               {meta}
             </p>
           )}

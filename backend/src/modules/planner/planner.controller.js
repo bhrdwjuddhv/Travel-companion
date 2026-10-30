@@ -37,7 +37,7 @@ const ExtractBody = z.object({ text: z.string().min(1).max(1000) });
 /** POST /api/planning/extract — free text in, pre-fill for the form out. */
 export async function extract(req, res) {
   const body = parseOrThrow(ExtractBody, req.body, 'prompt');
-  res.json(await extractTripFields(body.text));
+  res.json(await extractTripFields(body.text, { ownerKey: req.ownerKey }));
 }
 
 const DecisionBody = z.object({ decisionId: z.string().min(1), choiceId: z.string().min(1) });

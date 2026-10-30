@@ -45,7 +45,7 @@ export default function ChatPanel({ tripId, context, onClearContext, onApplied, 
   };
 
   return (
-    <aside className="flex h-full w-full flex-col bg-[var(--c-bg-alt)]">
+    <aside className="flex h-full w-full flex-col">
       <header className="flex items-center justify-between border-b border-[var(--c-border)] px-4 py-3">
         <span className="flex items-center gap-2 text-[length:var(--type-body)] font-medium">
           <Sparkles size={14} style={{ color: 'var(--c-accent)' }} />
@@ -60,7 +60,7 @@ export default function ChatPanel({ tripId, context, onClearContext, onApplied, 
         </button>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="scroll-quiet flex-1 space-y-3 overflow-y-auto p-4">
         {!messages.length && (
           <p className="text-[length:var(--type-small)] leading-relaxed text-[var(--c-ink-muted)]">
             Point at anything with the pencil, then say what to change — “make the return cheaper”, “drop the

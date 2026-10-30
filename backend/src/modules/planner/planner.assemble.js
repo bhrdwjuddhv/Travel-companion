@@ -28,6 +28,9 @@ export const toAccommodation = (candidate, { id, destination, nights }) => ({
   nights,
   lat: candidate.lat ?? null,
   lng: candidate.lng ?? null,
+  url: candidate.url ?? null,
+  priceBasis: candidate.priceBasis ?? null,
+  photo: candidate.photo ?? null,
   distanceToKeyPlacesKm: null,
   source: candidate.source,
   timestamp: candidate.timestamp,
@@ -48,6 +51,7 @@ export const toActivity = (candidate, { id, plannedStart = null }) => ({
   ticketCost: null, // Places has no ticket price; the budget counts it as zero
   costType: null,
   isHiddenGem: candidate.isHiddenGem ?? false,
+  photo: candidate.photo ?? null,
   lat: candidate.lat ?? null,
   lng: candidate.lng ?? null,
   localTransportFromPrev: null,

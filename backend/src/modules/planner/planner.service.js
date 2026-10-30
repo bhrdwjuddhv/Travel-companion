@@ -2,16 +2,32 @@ import { LIMITS } from '../../constants.js';
 import { HttpError, notFound } from '../../shared/errors.js';
 import { TripPlan } from '../../schemas/trip.schema.js';
 import { parseOrThrow } from '../../shared/validate.js';
-import { logger, now, since } from '../../shared/logger.js';
+import { elapsedMs, logger, now, since } from '../../shared/logger.js';
 import { computeBudget, budgetVerdict, tierOf } from '../budget/budget.service.js';
+import { BUDGET_DEFAULTS } from '../../constants.js';
+
+/**
+ * The most a room may cost per night and still leave the stated cap intact.
+ * Accommodation is roughly half a trip's spend, so half the cap spread over
+ * the nights is the honest ceiling to hand the hotel search.
+ */
+function perNightCap(input, nightsPlan, rooms) {
+  const cap = input.budgetTotal ?? (input.budgetPerPerson ? input.budgetPerPerson * input.travellerCount : null);
+  if (!cap) return null;
+  const totalNights = nightsPlan.reduce((n, p) => n + p.nights, 0) || 1;
+  return Math.round((cap * 0.5) / totalNights / Math.max(rooms, 1));
+}
 import { buildGraph, segmentLabel } from '../graph/graph.builder.js';
 import { getTransportOptions, localHop } from '../transport/transport.service.js';
 import { resolveLocation } from '../places/geocode.service.js';
-import { searchStays, searchAttractions } from '../places/places.service.js';
+import { searchAttractions } from '../places/places.service.js';
+import { findStays } from '../hotels/hotels.service.js';
 import { assertGenerationQuota, createTrip, appendVersion } from '../trip/trip.service.js';
 import { buildSkeleton } from './planner.skeleton.js';
 import { selectPlan, researchHiddenGems } from './planner.select.js';
 import { freshGemsFor, ingestGems } from '../rag/rag.service.js';
+import { capture, captureDegradation, captureSpan } from '../../config/posthog.js';
+import { newTraceId, withTrace } from '../../shared/trace.js';
 import { placeDeduper, normalizePlaceName } from '../../shared/placeName.js';
 import { paceForDay, trimToPace } from './dayPace.js';
 import {
@@ -55,7 +71,10 @@ const source = (id, url, sourceType, entityRef) => ({
  * call, all serial. Now code does the fetching (all of it at once) and the
  * model makes a single selection call over compact summaries.
  */
-export async function generateTrip({ input, ownerKey, emit }) {
+export const generateTrip = (args) =>
+  withTrace({ traceId: newTraceId(), ownerKey: args.ownerKey }, () => runGeneration(args));
+
+async function runGeneration({ input, ownerKey, emit }) {
   const pipeline = log.start(
     'pipeline',
     `${input.origin}->${destinationsOf(input).join('/')} ${input.durationDays}d ${input.travellerCount}p mode=${input.planningMode}`
@@ -113,8 +132,16 @@ export async function generateTrip({ input, ownerKey, emit }) {
     )
   );
 
+  const rooms = Math.ceil(input.travellerCount / BUDGET_DEFAULTS.travellersPerRoom);
   const stayJobs = nightsPlan.map(({ destination, nights }, i) =>
-    searchStays(destination, { preference: input.accommodationPreference, preferPriceUpTo: tier.maxPricePerNight }).then(
+    findStays(destination, {
+      preference: input.accommodationPreference,
+      preferPriceUpTo: tier.maxPricePerNight,
+      maxPricePerNight: perNightCap(input, nightsPlan, rooms),
+      nights,
+      rooms,
+      tier,
+    }).then(
       (found) => {
         staysByDest[destination] = found;
         if (!found.length) return;
@@ -157,13 +184,21 @@ export async function generateTrip({ input, ownerKey, emit }) {
 
   // The slowest thing in the pipeline runs alongside all of it, not after.
   log.info('▶ hidden gems (background)');
-  const gemsJob = gatherHiddenGems(destinations, input.interests).catch((e) => {
+  const gemsJob = gatherHiddenGems(destinations, input.interests, ownerKey).catch((e) => {
     log.warn(`hidden gems unavailable: ${e.message}`);
+    captureDegradation('hidden_gems_failed', { ownerKey, detail: e.message });
     return [];
   });
 
+  const fanoutBegan = Date.now();
   await Promise.all([...transportJobs, ...stayJobs, ...attractionJobs, geocodeJob]);
   stage.done();
+  captureSpan({
+    name: 'provider fan-out',
+    ms: Date.now() - fanoutBegan,
+    ownerKey,
+    properties: { legs: legs.length, destinations: destinations.length, $ai_span_type: 'pipeline' },
+  });
 
   if (legs.some((_, i) => !transportByLeg[i]?.length)) {
     throw new HttpError(502, 'Could not find transport for every leg of this trip.');
@@ -171,13 +206,31 @@ export async function generateTrip({ input, ownerKey, emit }) {
 
   // ---- 3. One structured LLM call: pick options, sequence days ----
   const select = log.start('select (LLM)');
-  const selection = await selectPlan({ input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments: assignments, tier });
+  const selection = await selectPlan(
+    { input, legs, transportByLeg, staysByDest, attractionsByDest, dayAssignments: assignments, tier },
+    { ownerKey, tripId: null }
+  );
+  if (selection.fallback) {
+    captureDegradation('selection_fallback', {
+      ownerKey,
+      detail: selection.fallback,
+      destinations: destinations.length,
+      duration_days: input.durationDays,
+    });
+  }
   select.done();
 
   // ---- 4. Assemble deterministically from the model's choices ----
+  const assembleBegan = Date.now();
   const assemble = log.start('assemble');
   const draft = await assembleDraft({ input, legs, transportByLeg, staysByDest, attractionsByDest, assignments, nightsPlan, selection, dates });
   draft.placeCoords = placeCoords;
+  captureSpan({
+    name: 'assemble plan',
+    ms: Date.now() - assembleBegan,
+    ownerKey,
+    properties: { days: draft.days.length, $ai_span_type: 'pipeline' },
+  });
   assemble.done();
 
   const budgetStage = log.start('budget');
@@ -196,6 +249,16 @@ export async function generateTrip({ input, ownerKey, emit }) {
   send('done', { ...saved, input, plan, budgetVerdict: budgetVerdict(plan.budget, input) });
   pipeline.done(`total`);
 
+  capture(ownerKey, 'trip generated', {
+    planning_mode: input.planningMode,
+    duration_days: input.durationDays,
+    destinations: destinations.length,
+    travellers: input.travellerCount,
+    budget_tier: input.budgetTier,
+    budget_total: plan.budget.total,
+    within_budget: budgetVerdict(plan.budget, input).withinBudget,
+  });
+
   // ---- 5. Gems patch in whenever they land, after the plan is usable ----
   await patchHiddenGems({ tripId: saved.tripId, ownerKey, input, plan, version: saved.versionNumber, gemsJob, send });
 
@@ -206,7 +269,7 @@ export async function generateTrip({ input, ownerKey, emit }) {
  * Qdrant first, web search only for what's missing or stale. A city researched
  * last week costs nothing to reuse, and web search is the slow tail here.
  */
-async function gatherHiddenGems(destinations, interests) {
+async function gatherHiddenGems(destinations, interests, ownerKey = null) {
   const known = await Promise.all(destinations.map((city) => freshGemsFor(city)));
   const reused = known.filter(Boolean).flat();
   const missing = destinations.filter((_, i) => !known[i]);
@@ -216,7 +279,14 @@ async function gatherHiddenGems(destinations, interests) {
     return reused;
   }
 
-  const found = await researchHiddenGems({ destinations: missing, interests });
+  const searchBegan = now();
+  const found = await researchHiddenGems({ destinations: missing, interests, ownerKey });
+  captureSpan({
+    name: 'openai:web_search',
+    ms: elapsedMs(searchBegan),
+    ownerKey,
+    properties: { $ai_span_type: 'provider', cities: missing.length, gems: found.length },
+  });
   await ingestGems(found);
   log.info(`hidden gems: reused ${reused.length}, researched ${found.length}`);
   return [...reused, ...found];
@@ -506,7 +576,10 @@ const chunk = (list, size) =>
  * decision maker, so no agent loop is needed — which also means the run can
  * pause on an open SSE stream without a stalled model.
  */
-export async function generateGuided({ input, ownerKey, emit }) {
+export const generateGuided = (args) =>
+  withTrace({ traceId: newTraceId(), ownerKey: args.ownerKey }, () => runGuided(args));
+
+async function runGuided({ input, ownerKey, emit }) {
   const pipeline = log.start('pipeline (stepwise)', `${input.origin} ${input.durationDays}d`);
   await assertGenerationQuota(ownerKey);
 
@@ -583,7 +656,12 @@ export async function generateGuided({ input, ownerKey, emit }) {
     for (const [destIndex, { destination, nights }] of nightsPlan.entries()) {
       const t = log.start('stepwise stays', destination);
       send('progress', { step: 'researching_stays', label: `Places to stay in ${destination}` });
-      const found = await searchStays(destination, { preference: input.accommodationPreference }).catch((e) => {
+      const found = await findStays(destination, {
+        preference: input.accommodationPreference,
+        preferPriceUpTo: tierOf(input).maxPricePerNight,
+        nights,
+        tier: tierOf(input),
+      }).catch((e) => {
         log.warn(`stay search failed for ${destination}: ${e.message}`);
         return [];
       });

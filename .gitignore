@@ -1,2 +1,30 @@
-globalAssets 
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+coverage
+
+# Secrets. Matches backend/.env and frontend/.env at any depth;
+# .env.example is deliberately NOT matched and stays tracked.
 .env
+.env.local
+.env.*.local
+
+# Logs and scratch output
+*.log
+logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Source material that is not part of the app
+globalAssets
+
+# Editor and OS
+.idea
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.suo
+*.sw?

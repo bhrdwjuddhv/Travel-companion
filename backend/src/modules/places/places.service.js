@@ -1,4 +1,4 @@
-import { ENV, STAY_RATES, TTL_HOURS, TIMEOUTS_MS } from '../../constants.js';
+import { ENV, TTL_HOURS, TIMEOUTS_MS } from '../../constants.js';
 import { fetchJson } from '../../shared/fetchJson.js';
 import { cached } from '../../shared/cache.js';
 import { logger } from '../../shared/logger.js';
@@ -14,7 +14,10 @@ const FIELDS = [
   'places.userRatingCount',
   'places.priceLevel',
   'places.location',
+  'places.types',
+  'places.primaryType',
   'places.primaryTypeDisplayName',
+  'places.photos',
 ].join(',');
 
 function searchText(textQuery, { limit = 10, ttlHours }) {
@@ -34,12 +37,29 @@ function searchText(textQuery, { limit = 10, ttlHours }) {
   });
 }
 
+/**
+ * The first photo Places offers, as a reference rather than a URL. The URL
+ * needs the API key, so it is built server-side by the photo route — a key in
+ * an <img src> would be a key in everyone's browser.
+ */
+const firstPhoto = (p) => {
+  const photo = p.photos?.[0];
+  if (!photo?.name) return null;
+  return {
+    ref: photo.name,
+    attribution: photo.authorAttributions?.[0]?.displayName ?? null,
+  };
+};
+
 // Ranking signal: quality weighted by how much evidence backs it.
 const score = (p) => (p.rating ?? 0) * Math.log10((p.userRatingCount ?? 0) + 10);
 
-export async function searchStays(destination, { preference = 'any', maxPricePerNight = null, preferPriceUpTo = null, limit = 6 } = {}) {
+export async function searchStays(destination, { preference = 'any', hint = null, limit = 6 } = {}) {
   const kind = preference === 'any' ? 'hotels' : `${preference}s`;
-  const places = await searchText(`${kind} to stay in ${destination}`, { limit: limit * 2, ttlHours: TTL_HOURS.stay });
+  const places = await searchText(`${hint ? `${hint} ` : ''}${kind} to stay in ${destination}`, {
+    limit: limit * 2,
+    ttlHours: TTL_HOURS.stay,
+  });
   const timestamp = new Date().toISOString();
 
   return places
@@ -52,22 +72,18 @@ export async function searchStays(destination, { preference = 'any', maxPricePer
       reviewCount: p.userRatingCount ?? null,
       lat: p.location?.latitude ?? null,
       lng: p.location?.longitude ?? null,
-      // Places returns a price *band*, not a rate — hence always an estimate.
-      pricePerNight: STAY_RATES[p.priceLevel] ?? STAY_RATES.default,
-      priceType: 'estimate',
+      // No price is set here. Places has no nightly rate and, for lodging,
+      // almost never even a priceLevel — so the raw signals go up and
+      // hotels/estimate.js turns them into a number.
+      priceLevel: p.priceLevel ?? null,
+      photo: firstPhoto(p),
+      primaryType: p.primaryType ?? null,
+      types: p.types ?? [],
       source: 'google_places',
       timestamp,
     }))
-    // A numeric budget is a hard cap; a tier only *prefers* its band, so a
-    // budget tier in an expensive city still returns somewhere to sleep.
-    .filter((s) => maxPricePerNight == null || s.pricePerNight <= maxPricePerNight)
-    .sort((a, b) => {
-      if (preferPriceUpTo != null) {
-        const inBand = (s) => (s.pricePerNight <= preferPriceUpTo ? 0 : 1);
-        if (inBand(a) !== inBand(b)) return inBand(a) - inBand(b);
-      }
-      return score(b) - score(a);
-    })
+    // Ranked on quality only; hotels.service prices them and fits the budget.
+    .sort((a, b) => score(b) - score(a))
     .slice(0, limit);
 }
 
@@ -82,6 +98,7 @@ export async function searchAttractions(destination, { interests = [], limit = 1
     placeId: p.id,
     name: normalizePlaceName(p.displayName?.text) || 'Unknown',
     category: p.primaryTypeDisplayName?.text ?? 'attraction',
+    photo: firstPhoto(p),
     address: p.formattedAddress ?? null,
     rating: p.rating ?? null,
     reviewCount: p.userRatingCount ?? null,

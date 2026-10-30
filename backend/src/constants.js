@@ -12,6 +12,13 @@ export const ENV = {
   RAILRADAR_API_KEY: process.env.RAILRADAR_API_KEY,
   QDRANT_URL: process.env.QDRANT_URL,
   QDRANT_API_KEY: process.env.QDRANT_API_KEY,
+  // Analytics + LLM observability. Optional: unset means no telemetry at all.
+  POSTHOG_KEY: process.env.POSTHOG_KEY,
+  POSTHOG_HOST: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+  // Traces carry prompts and model output by default, which for this app means
+  // whatever the traveller typed. Set this to keep the shape of each call —
+  // model, tokens, latency, cost — without the content.
+  POSTHOG_PRIVACY_MODE: process.env.POSTHOG_PRIVACY_MODE === 'true',
 };
 
 // RAILRADAR_API_KEY stays optional: without it, trains fall back to the
@@ -39,9 +46,11 @@ export const PROVIDERS = {
   bus: 'google_estimator',    // MVP fallback
   flight: 'google_estimator', // MVP fallback (Amadeus later)
   car: 'google_estimator',
+  // Hotels: Google Places plus the estimate model below. One line to swap in a
+  // provider that quotes real rates.
+  hotel: 'google_places',
 };
 
-// Freshness time-to-live per data type (hours). Stale -> re-research.
 export const TTL_HOURS = {
   attraction: 24 * 30, // evergreen
   stay: 24 * 3,
@@ -69,15 +78,112 @@ export const INTERCITY_RATES = {
   flight: { base: 1800, perKm: 4.5, minimum: 2500 },
 };
 
-// Nightly stay price by Google Places priceLevel (INR). Places gives a band,
-// not a rate — so every stay price is an "estimate", never "quoted".
-export const STAY_RATES = {
-  PRICE_LEVEL_FREE: 0,
-  PRICE_LEVEL_INEXPENSIVE: 1200,
-  PRICE_LEVEL_MODERATE: 2600,
-  PRICE_LEVEL_EXPENSIVE: 5500,
-  PRICE_LEVEL_VERY_EXPENSIVE: 9500,
-  default: 2200,
+/**
+ * What a room costs, estimated.
+ *
+ * Google Places gives no nightly rate, and for lodging in India it gives no
+ * `priceLevel` either — 0 of 118 hotels sampled across five cities carried one.
+ * What it does give, on every result, is `primaryType` (hostel / hotel /
+ * resort_hotel / guest_house), a rating, and a review count. Those plus the
+ * city are enough to put a realistic number on a room, and every one of them
+ * is tunable here.
+ *
+ * The output is always labelled an estimate. It never claims a quoted rate.
+ */
+export const HOTEL_ESTIMATE = {
+  /** Nightly INR per city tier and class of place. Owner edits real numbers. */
+  bands: {
+    metro: {
+      hostel: { min: 700, max: 1600 },
+      budget: { min: 1500, max: 3200 },
+      mid: { min: 3000, max: 7500 },
+      upscale: { min: 7000, max: 18000 },
+      luxury: { min: 18000, max: 45000 },
+    },
+    tier2: {
+      hostel: { min: 500, max: 1200 },
+      budget: { min: 1000, max: 2400 },
+      mid: { min: 2200, max: 5500 },
+      upscale: { min: 5000, max: 14000 },
+      luxury: { min: 14000, max: 38000 },
+    },
+    touristHill: {
+      hostel: { min: 400, max: 1000 },
+      budget: { min: 900, max: 2200 },
+      mid: { min: 2000, max: 5000 },
+      upscale: { min: 4500, max: 12000 },
+      luxury: { min: 12000, max: 30000 },
+    },
+    default: {
+      hostel: { min: 500, max: 1200 },
+      budget: { min: 1000, max: 2500 },
+      mid: { min: 2000, max: 5000 },
+      upscale: { min: 5000, max: 12000 },
+      luxury: { min: 12000, max: 30000 },
+    },
+  },
+
+  /** Anything unlisted falls to `default`. Match is case-insensitive. */
+  cityTier: {
+    mumbai: 'metro', delhi: 'metro', 'new delhi': 'metro', gurgaon: 'metro', noida: 'metro',
+    bengaluru: 'metro', bangalore: 'metro', hyderabad: 'metro', chennai: 'metro',
+    kolkata: 'metro', pune: 'metro',
+    jaipur: 'tier2', udaipur: 'tier2', jodhpur: 'tier2', agra: 'tier2', varanasi: 'tier2',
+    goa: 'tier2', kochi: 'tier2', amritsar: 'tier2', ahmedabad: 'tier2', lucknow: 'tier2',
+    hampi: 'tier2', mysuru: 'tier2', mysore: 'tier2', pushkar: 'tier2',
+    manali: 'touristHill', kasol: 'touristHill', shimla: 'touristHill', mcleodganj: 'touristHill',
+    dharamshala: 'touristHill', leh: 'touristHill', ladakh: 'touristHill', spiti: 'touristHill',
+    rishikesh: 'touristHill', mussoorie: 'touristHill', nainital: 'touristHill',
+    darjeeling: 'touristHill', gangtok: 'touristHill', munnar: 'touristHill', ooty: 'touristHill',
+    coorg: 'touristHill',
+  },
+  defaultCityTier: 'default',
+
+  /** Google's own classification, when it bothers to price something. */
+  classByPriceLevel: {
+    PRICE_LEVEL_INEXPENSIVE: 'budget',
+    PRICE_LEVEL_MODERATE: 'mid',
+    PRICE_LEVEL_EXPENSIVE: 'upscale',
+    PRICE_LEVEL_VERY_EXPENSIVE: 'luxury',
+  },
+
+  /** primaryType first, then whatever is in `types`. */
+  classByType: {
+    hostel: 'hostel',
+    guest_house: 'budget',
+    bed_and_breakfast: 'budget',
+    motel: 'budget',
+    inn: 'budget',
+    farmstay: 'budget',
+    cottage: 'mid',
+    extended_stay_hotel: 'mid',
+    hotel: 'mid',
+    resort_hotel: 'upscale',
+  },
+  defaultClass: 'mid',
+
+  /** A place with these alongside its lodging type is a notch dearer. */
+  luxuryMarkers: ['spa', 'casino', 'golf_course', 'wedding_venue', 'fine_dining_restaurant'],
+  classOrder: ['hostel', 'budget', 'mid', 'upscale', 'luxury'],
+
+  /**
+   * Where in the band the rating lands it. Below `low` sits at the floor,
+   * `high` and above at the ceiling — and a 5-star with nine reviews is pulled
+   * back toward the middle, because that rating has not been earned yet.
+   */
+  rating: { low: 3.4, high: 4.7, confidentAfterReviews: 300, unprovenPull: 0.5 },
+
+  /** What the traveller asked for, when it is cheaper than what we found. */
+  preferenceMultiplier: { hostel: 0.75, homestay: 0.85, budget: 0.8, hotel: 1, any: 1 },
+
+  roundTo: 50,
+
+  /**
+   * What to ask Places for, per budget tier. Without this a search for
+   * "hotels in Mumbai" returns five-star landmarks and nothing a budget trip
+   * could ever afford — the cheapest candidate was already over the cap.
+   */
+  searchHint: { budget: 'budget', balanced: 'mid-range', premium: 'luxury' },
 };
 
 // Indian Railways is fare-slabbed by class; per-km rates are a rough seed.
@@ -91,6 +197,7 @@ export const TRAIN_FARE_PER_KM = { SL: 0.55, '3A': 1.5, '2A': 2.1, '1A': 3.6, ba
  */
 export const BUDGET_TIERS = {
   budget: {
+    id: 'budget',
     label: 'Budget-friendly',
     blurb: 'Cheap beds, sleeper class, mostly free sights.',
     maxPricePerNight: 1800,
@@ -99,6 +206,7 @@ export const BUDGET_TIERS = {
     foodPerPersonPerDay: 350,
   },
   balanced: {
+    id: 'balanced',
     label: 'Comfortable',
     blurb: 'Decent hotels, AC class, a paid sight or two a day.',
     maxPricePerNight: 4000,
@@ -107,6 +215,7 @@ export const BUDGET_TIERS = {
     foodPerPersonPerDay: 500,
   },
   premium: {
+    id: 'premium',
     label: 'Premium',
     blurb: 'Heritage stays, the good class, book what you like.',
     maxPricePerNight: 12000,

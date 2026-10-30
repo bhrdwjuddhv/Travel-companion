@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { qdrant } from '../../config/qdrant.js';
 import { ENV, MODELS, QDRANT, TTL_HOURS, TIMEOUTS_MS } from '../../constants.js';
 import { fetchJson } from '../../shared/fetchJson.js';
-import { logger } from '../../shared/logger.js';
+import { elapsedMs, logger, now } from '../../shared/logger.js';
+import { captureEmbedding, captureSpan } from '../../config/posthog.js';
 
 const log = logger('rag');
 
@@ -12,6 +13,7 @@ const log = logger('rag');
  * what makes "somewhere quiet with old architecture" searchable later.
  */
 async function embed(text) {
+  const began = now();
   const body = await fetchJson('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     timeoutMs: TIMEOUTS_MS.llm,
@@ -19,6 +21,7 @@ async function embed(text) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ENV.OPENAI_API_KEY}` },
     body: JSON.stringify({ model: MODELS.EMBEDDING, input: text }),
   });
+  captureEmbedding({ model: MODELS.EMBEDDING, ms: elapsedMs(began), tokens: body.usage?.prompt_tokens ?? null });
   return body.data[0].embedding;
 }
 
@@ -30,6 +33,7 @@ const cutoff = () => Date.now() - TTL_HOURS.hiddenGem * 3600_000;
  */
 export async function freshGemsFor(city) {
   if (!qdrant) return null;
+  const began = now();
   try {
     const { points } = await qdrant.scroll(QDRANT.collection, {
       limit: 20,
@@ -46,9 +50,15 @@ export async function freshGemsFor(city) {
 
     if (!points?.length) {
       log.info(`${city} MISS (no fresh gems)`);
+      captureSpan({ name: 'qdrant:lookup', ms: elapsedMs(began), properties: { cache: 'MISS', $ai_span_type: 'provider', city } });
       return null;
     }
     log.info(`${city} HIT (${points.length} gems)`);
+    captureSpan({
+      name: 'qdrant:lookup',
+      ms: elapsedMs(began),
+      properties: { cache: 'HIT', $ai_span_type: 'provider', city, gems: points.length },
+    });
     return points.map((p) => ({
       destination: p.payload.destination,
       name: p.payload.name,
@@ -58,6 +68,7 @@ export async function freshGemsFor(city) {
   } catch (e) {
     // Qdrant being down must never stop a trip being planned.
     log.warn(`lookup failed for ${city}, researching instead: ${e.message}`);
+    captureSpan({ name: 'qdrant:lookup', ms: elapsedMs(began), properties: { cache: 'ERROR', $ai_span_type: 'provider', city } });
     return null;
   }
 }
@@ -65,6 +76,7 @@ export async function freshGemsFor(city) {
 /** Stores freshly-researched gems, keyed by city, with the time they were found. */
 export async function ingestGems(gems) {
   if (!qdrant || !gems.length) return 0;
+  const began = now();
   try {
     const timestampMs = Date.now();
     const points = await Promise.all(
@@ -86,6 +98,11 @@ export async function ingestGems(gems) {
 
     await qdrant.upsert(QDRANT.collection, { wait: false, points });
     log.info(`ingested ${points.length} gems`);
+    captureSpan({
+      name: 'qdrant:upsert',
+      ms: elapsedMs(began),
+      properties: { $ai_span_type: 'provider', gems: points.length },
+    });
     return points.length;
   } catch (e) {
     log.warn(`ingest failed, gems used but not stored: ${e.message}`);

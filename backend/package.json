@@ -13,11 +13,13 @@
   },
   "dependencies": {
     "@openai/agents": "^0.16.1",
+    "@posthog/ai": "^8.17.2",
     "@qdrant/js-client-rest": "^1.19.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.9.3",
+    "posthog-node": "^5.61.0",
     "zod": "^4.4.3"
   }
 }

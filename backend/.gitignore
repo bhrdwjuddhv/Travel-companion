@@ -1,3 +1,8 @@
 node_modules
 .env
-test
+*.log
+coverage
+
+# NOTE: `test` used to be listed here, which excluded the whole test suite
+# from version control. It is tracked now — tests belong in the repo.
+# .npmrc is also tracked on purpose: the deploy needs its legacy-peer-deps flag.

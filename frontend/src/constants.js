@@ -7,6 +7,15 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 export const OWNER_KEY_STORAGE = 'travel-ai:ownerKey';
 
+/**
+ * Product analytics. The project token is write-only and ships in the bundle
+ * by design; no key means analytics is simply off.
+ */
+export const ANALYTICS = {
+  key: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+  host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+};
+
 /* ------------------------------------------------------------------ *
  * Palette
  *
@@ -170,6 +179,64 @@ export const BACKDROP = {
   parallaxPx: 20,
   parallaxEase: 0.06,
   pageMinHeightVh: 100,
+};
+
+/* ------------------------------------------------------------------ *
+ * Clay
+ *
+ * Soft, matte, slightly puffy surfaces. The whole effect is two shadows
+ * pulling in opposite directions — a light one up-left, a dark one
+ * down-right — over a low-contrast surface. Pressed states flip both inside.
+ *
+ * The palette is a cool sage-and-slate, chosen to stay calm behind
+ * photographs of places; it is deliberately not the warm cream-and-terracotta
+ * every claymorphism example reaches for.
+ * ------------------------------------------------------------------ */
+export const CLAY = {
+  radius: { card: '26px', inner: '18px', pill: '999px', tile: '22px' },
+  light: {
+    surface: '#EDF1EE',
+    surfaceRaised: '#F4F7F4',
+    surfaceSunken: '#E2E8E4',
+    highlight: 'rgba(255, 255, 255, 0.95)',
+    shadow: 'rgba(104, 124, 112, 0.42)',
+    shadowRaised:
+      '-7px -7px 16px rgba(255,255,255,0.95), 8px 9px 20px rgba(104,124,112,0.30), inset 0 1px 1px rgba(255,255,255,0.6)',
+    shadowPressed:
+      'inset -4px -4px 10px rgba(255,255,255,0.85), inset 5px 5px 12px rgba(104,124,112,0.32)',
+    shadowSoft: '-4px -4px 10px rgba(255,255,255,0.9), 5px 6px 14px rgba(104,124,112,0.22)',
+  },
+  dark: {
+    surface: '#232A2B',
+    surfaceRaised: '#2A3233',
+    surfaceSunken: '#1C2223',
+    highlight: 'rgba(255, 255, 255, 0.07)',
+    shadow: 'rgba(0, 0, 0, 0.55)',
+    shadowRaised:
+      '-7px -7px 16px rgba(255,255,255,0.045), 8px 9px 22px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.06)',
+    shadowPressed:
+      'inset -4px -4px 10px rgba(255,255,255,0.05), inset 5px 5px 12px rgba(0,0,0,0.55)',
+    shadowSoft: '-4px -4px 10px rgba(255,255,255,0.035), 5px 6px 14px rgba(0,0,0,0.45)',
+  },
+};
+
+/** The adventure map: a treasure hunt drawn over the same places. */
+export const FUN_MAP = {
+  // Pins cycle through these, so a day reads as a run of different stickers.
+  pinIcons: ['funBalloon', 'funKite', 'funRocket', 'funGem', 'funConfetti', 'funCactus'],
+  originIcon: 'originFlag',
+  returnIcon: 'returnFlag',
+  stayIcon: 'treasureChest',
+  trail: { color: '#C98A5B', weight: 4, dash: '2 12', opacity: 0.95 },
+  pinSize: 46,
+  // Same keyless OpenStreetMap tiles as the plain map. CARTO's basemaps now
+  // want an API key, which is not a dependency worth taking for a background.
+};
+
+/** Place photos come through our own route, never with the API key attached. */
+export const PLACE_PHOTO = {
+  path: '/api/places/photo',
+  width: 480,
 };
 
 /** Default theme; the user's choice is remembered in localStorage. */

@@ -6,6 +6,7 @@ import HeroPrompt from './HeroPrompt';
 import DestinationBento from './DestinationBento';
 import { Section, SectionHeading, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
 import Reveal from '../../shared/Reveal';
+import { track } from '../../shared/analytics';
 import { BACKDROP, FEATURES, LANDING, PLANNING_MODES, SECTION_INTRO } from '../../constants';
 
 // Nothing boxes the hero in: the words sit on the footage and a shadow does
@@ -36,7 +37,8 @@ export default function Landing() {
   // (or it failed) just opens the form empty, which is the old path.
   const onExtracted = (fields, formEl) => go(centreOf(formEl), { prefill: fields ?? null });
 
-  const pickDestination = (text) => {
+  const pickDestination = (text, name) => {
+    track('destination tile picked', { destination: name });
     setPromptText(text);
     heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };

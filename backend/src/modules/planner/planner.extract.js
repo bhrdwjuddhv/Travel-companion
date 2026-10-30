@@ -1,13 +1,15 @@
 // The hero prompt bar: one sentence in, pre-filled form fields out. Pure text
 // extraction — no provider calls, no plan, no database. The user still reviews
 // every field and presses Continue, so a wrong guess costs nothing.
-import { Agent, run, InputGuardrailTripwireTriggered } from '@openai/agents';
+import { InputGuardrailTripwireTriggered, Agent } from '@openai/agents';
 import { MODELS, TIMEOUTS_MS, LIMITS } from '../../constants.js';
 import { TripExtraction } from '../../schemas/trip.schema.js';
 import { travelScopeGuardrail } from '../../guardrails/guardrails.js';
 import { isIsoDate, daysBetween } from '../../shared/dates.js';
 import { HttpError } from '../../shared/errors.js';
 import { logger, now, since } from '../../shared/logger.js';
+import { capture, captureDegradation, runTraced } from '../../config/posthog.js';
+import { newTraceId, withTrace } from '../../shared/trace.js';
 
 const log = logger('extract');
 
@@ -67,7 +69,10 @@ export function cleanExtraction(raw) {
 const timeout = (ms) =>
   new Promise((_, reject) => setTimeout(() => reject(new HttpError(504, `Reading that took too long`)), ms));
 
-export async function extractTripFields(text, today = new Date().toISOString().slice(0, 10)) {
+export const extractTripFields = (text, options = {}) =>
+  withTrace({ traceId: newTraceId(), ownerKey: options.ownerKey ?? null }, () => runExtraction(text, options));
+
+async function runExtraction(text, { ownerKey = null, today = new Date().toISOString().slice(0, 10) } = {}) {
   const began = now();
 
   const agent = new Agent({
@@ -80,9 +85,16 @@ export async function extractTripFields(text, today = new Date().toISOString().s
 
   let result;
   try {
-    result = await Promise.race([run(agent, `Today is ${today}.\n\nTraveller says: ${text}`), timeout(TIMEOUTS_MS.llm)]);
+    result = await Promise.race([
+      runTraced(agent, `Today is ${today}.\n\nTraveller says: ${text}`, {
+        workflowName: 'Hero prompt extraction',
+        ownerKey,
+      }),
+      timeout(TIMEOUTS_MS.llm),
+    ]);
   } catch (e) {
     if (e instanceof InputGuardrailTripwireTriggered) {
+      captureDegradation('guardrail_blocked', { ownerKey, surface: 'hero_prompt' });
       throw new HttpError(400, 'Tell me about a trip — where from, where to, when, and who with.');
     }
     throw e;
@@ -91,6 +103,7 @@ export async function extractTripFields(text, today = new Date().toISOString().s
   const fields = cleanExtraction(TripExtraction.parse(result.finalOutput));
   const found = Object.entries(fields).filter(([, v]) => (Array.isArray(v) ? v.length : v != null));
   log.info(`read ${found.length} field(s) in ${since(began)}: ${found.map(([k]) => k).join(', ') || 'none'}`);
+  capture(ownerKey, 'trip prompt extracted', { fields_found: found.length, chars: text.length });
 
   return { fields };
 }

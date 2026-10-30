@@ -15,7 +15,7 @@ export default function DestinationBento({ onPick }) {
         <Reveal as="li" key={d.name} delay={i} className={BENTO[d.size] ?? BENTO.sm}>
           <button
             type="button"
-            onClick={() => onPick(d.prompt)}
+            onClick={() => onPick(d.prompt, d.name)}
             className="group relative block h-full w-full overflow-hidden rounded-[var(--r-lg)] text-left transition-transform duration-500 ease-out hover:-translate-y-1"
           >
             <img

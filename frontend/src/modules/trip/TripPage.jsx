@@ -1,16 +1,16 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, Map as MapIcon, MessageSquare, Share2, Workflow } from 'lucide-react';
-import TripCanvas from '../graph/TripCanvas';
 import BudgetPanel from '../budget/BudgetPanel';
 import CalendarView from '../calendar/CalendarView';
-// Leaflet is ~50kB gzipped and most sessions never open the map, so it loads
-// when the tab is first clicked rather than on every page view.
-const MapView = lazy(() => import('../map/MapView'));
 import ChatPanel from '../chat/ChatPanel';
+import Itinerary from './Itinerary';
 import ThemeToggle from '../../shared/ThemeToggle';
 import { api } from '../../shared/api';
-import { useIsMobile } from '../../shared/useIsMobile';
+import Icon from '../../shared/Icon';
+
+// Leaflet is ~50kB gzipped and plenty of sessions never open a map, so both
+// map views load when first asked for rather than on every page view.
+const FunMap = lazy(() => import('../map/FunMap'));
 
 export default function TripPage() {
   const { tripId } = useParams();
@@ -20,12 +20,17 @@ export default function TripPage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   const [copied, setCopied] = useState(false);
-  // The node canvas is unusable on a phone, so Calendar opens first there.
-  // Still a toggle, not a lockout.
-  const isMobile = useIsMobile();
-  const [view, setView] = useState(isMobile ? 'calendar' : 'graph');
+  // Nothing is phone-hostile any more: the itinerary stacks first on a narrow
+  // screen and the map is usable there, so there is no mobile-only default.
+  // The calendar is no longer a tab, but it is still what PDF export captures,
+  // so it lives in a sheet the export button opens.
+  const [exporting, setExporting] = useState(false);
   const [editContext, setEditContext] = useState(null);
-  const [chatOpen, setChatOpen] = useState(false);
+  // Budget and chat share the right column; stacking them pushed the chat
+  // off the bottom of the viewport entirely.
+  const [pane, setPane] = useState('budget');
+  // What the itinerary last pointed at, which is what the map flies to.
+  const [focus, setFocus] = useState(null);
 
   useEffect(() => {
     api(`/api/trips/${tripId}`).then(setTrip, (e) => setError(e.message));
@@ -71,7 +76,6 @@ export default function TripPage() {
   if (!trip.plan) return <Message>This trip has no saved plan yet.</Message>;
 
   const { plan, input } = trip;
-  const route = [input.origin, input.primaryDestination, ...(input.additionalDestinations ?? [])].join(' → ');
 
   const share = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -79,58 +83,41 @@ export default function TripPage() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const onFocus = (target) => setFocus(target);
+
+  const openEdit = (context) => {
+    setEditContext(context);
+    setPane('chat');
+  };
+
   return (
-    <main className="flex h-[100dvh] flex-col bg-[var(--c-bg)] text-[var(--c-ink)]">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[var(--c-border)] bg-[var(--c-bg-alt)] px-4 py-2.5 sm:px-5 sm:py-3">
+    <main className="flex h-[100dvh] flex-col bg-[var(--clay-surface)] text-[var(--c-ink)]">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
         <div className="min-w-0">
-          <h1 className="truncate text-[length:var(--type-body)] font-semibold">{route}</h1>
-          <p className="text-[length:var(--type-small)] text-[var(--c-ink-muted)]">
+          <h1 className="truncate text-[length:var(--type-body)] font-semibold">
+            {[input.origin, input.primaryDestination, ...(input.additionalDestinations ?? [])].join(' → ')}
+          </h1>
+          <p className="text-[length:var(--type-small)] text-[var(--c-ink-dim)]">
             {input.startDate ? `${input.startDate} → ${input.endDate}` : `${input.durationDays} days`} ·{' '}
             {input.travellerCount} traveller{input.travellerCount > 1 ? 's' : ''} · v{trip.versionNumber} ·{' '}
             {input.planningMode}
           </p>
         </div>
 
-        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 text-sm sm:w-auto">
-          {busy && (
-            <span className="text-[length:var(--type-small)]" style={{ color: 'var(--c-accent-text)' }}>
-              updating…
-            </span>
-          )}
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+          {busy && <span className="text-[length:var(--type-small)] text-[var(--c-ink-dim)]">updating…</span>}
 
-          <div className="flex overflow-hidden rounded-[var(--r-pill)] border border-[var(--c-border-strong)]">
-            <ViewTab active={view === 'graph'} onClick={() => setView('graph')} Icon={Workflow} label="Graph" />
-            <ViewTab active={view === 'map'} onClick={() => setView('map')} Icon={MapIcon} label="Map" />
-            <ViewTab active={view === 'calendar'} onClick={() => setView('calendar')} Icon={CalendarDays} label="Calendar" />
-          </div>
-
-          <button
-            onClick={() => setChatOpen((v) => !v)}
-            aria-pressed={chatOpen}
-            className="ui-btn ui-btn-sm"
-            style={
-              chatOpen
-                ? { background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }
-                : { border: '1px solid var(--c-border-strong)' }
-            }
-          >
-            <MessageSquare size={13} />
-            Chat
+          <button onClick={() => setExporting(true)} className="clay-pill clay-pressable min-h-9">
+            <Icon name="download" size={16} />
+            Export
           </button>
 
           <ThemeToggle />
-
-          <button
-            onClick={share}
-            className="ui-btn ui-btn-ghost ui-btn-sm"
-          >
-            <Share2 size={13} />
+          <button onClick={share} className="clay-pill clay-pressable min-h-9">
+            <Icon name="bookmark" size={16} />
             {copied ? 'Copied' : 'Share'}
           </button>
-          <button
-            onClick={() => navigate('/planning')}
-            className="ui-btn ui-btn-primary ui-btn-sm"
-          >
+          <button onClick={() => navigate('/planning')} className="clay-pill clay-pressable min-h-9 font-medium">
             New trip
           </button>
         </div>
@@ -138,77 +125,95 @@ export default function TripPage() {
 
       {note && (
         <p
-          className="border-b px-5 py-2 text-[length:var(--type-small)]"
-          style={{ borderColor: 'var(--c-border)', background: 'var(--c-warn-soft)', color: 'var(--c-warn)' }}
+          className="clay-soft mx-4 mb-2 px-4 py-2 text-[length:var(--type-small)]"
+          style={{ color: 'var(--c-warn)' }}
           role="status"
         >
           {note}
         </p>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col">
-          {view === 'graph' && (
-            <TripCanvas
-              plan={plan}
-              semi={semi}
-              onEdit={(context) => {
-                setEditContext(context);
-                setChatOpen(true);
-              }}
-            />
-          )}
-          {view === 'map' && (
-            <Suspense fallback={<Message>Loading the map…</Message>}>
-              <MapView trip={trip} />
-            </Suspense>
-          )}
-          {view === 'calendar' && <CalendarView trip={trip} />}
+      {/* Three columns on a desktop, stacked everywhere smaller. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 pt-0 lg:grid-cols-[minmax(300px,0.95fr)_minmax(0,2fr)_21rem] lg:overflow-hidden">
+        <div className="min-h-[60vh] lg:min-h-0">
+          <Itinerary trip={trip} onFocus={onFocus} focused={focus?.key} semi={semi} onEdit={openEdit} />
         </div>
 
-        {chatOpen && (
-          <div className="h-80 w-full shrink-0 border-t border-[var(--c-border)] lg:h-auto lg:w-96 lg:border-l lg:border-t-0">
-            <ChatPanel
-              tripId={tripId}
-              context={editContext}
-              onClearContext={() => setEditContext(null)}
-              onApplied={(result) => setTrip((t) => ({ ...t, ...result }))}
-              onClose={() => setChatOpen(false)}
-            />
-          </div>
-        )}
+        <div className="clay flex min-h-[60vh] flex-col overflow-hidden lg:min-h-0">
+          <Suspense fallback={<Centered>Drawing the trail…</Centered>}>
+            <FunMap trip={trip} focus={focus} />
+          </Suspense>
+        </div>
 
-        <BudgetPanel
-          key={trip.versionNumber}
-          budget={plan.budget}
-          verdict={trip.budgetVerdict}
-          tripId={tripId}
-          versionNumber={trip.versionNumber}
-          onRefit={(result) => setTrip((t) => ({ ...t, ...result }))}
-        />
+        <div className="clay flex min-h-0 flex-col overflow-hidden">
+          <div className="clay-soft m-2 flex shrink-0 gap-1 p-1">
+            {[
+              ['budget', 'Budget', 'priceSliders'],
+              ['chat', 'Ask AI', 'chat'],
+            ].map(([id, label, icon]) => (
+              <button
+                key={id}
+                onClick={() => setPane(id)}
+                aria-pressed={pane === id}
+                className="clay-pressable flex min-h-9 flex-1 items-center justify-center gap-2 rounded-[var(--clay-radius-pill)] px-3 text-[length:var(--type-small)] font-medium"
+              >
+                <Icon name={icon} size={16} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {pane === 'budget' ? (
+              <BudgetPanel
+                key={trip.versionNumber}
+                budget={plan.budget}
+                verdict={trip.budgetVerdict}
+                tripId={tripId}
+                versionNumber={trip.versionNumber}
+                onRefit={(result) => setTrip((t) => ({ ...t, ...result }))}
+              />
+            ) : (
+              <ChatPanel
+                tripId={tripId}
+                context={editContext}
+                onClearContext={() => setEditContext(null)}
+                onApplied={(result) => setTrip((t) => ({ ...t, ...result }))}
+                onClose={() => setPane('budget')}
+              />
+            )}
+          </div>
+        </div>
       </div>
+
+      {exporting && <ExportSheet trip={trip} onClose={() => setExporting(false)} />}
     </main>
   );
 }
 
-const ViewTab = ({ active, onClick, Icon, label }) => (
-  <button
-    onClick={onClick}
-    aria-pressed={active}
-    className="flex min-h-9 items-center gap-1.5 px-3.5 py-1.5 text-[length:var(--type-small)] transition-colors"
-    style={
-      active
-        ? { background: 'var(--c-accent)', color: 'var(--c-accent-ink)' }
-        : { color: 'var(--c-ink-muted)' }
-    }
-  >
-    <Icon size={13} />
-    {label}
-  </button>
+/** The calendar, and the two export buttons it owns, in a sheet. */
+const ExportSheet = ({ trip, onClose }) => (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4" role="dialog" aria-modal="true">
+    <div className="clay flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden">
+      <header className="flex items-center justify-between px-5 py-3">
+        <h2 className="font-semibold">Day by day, and taking it with you</h2>
+        <button onClick={onClose} aria-label="Close" className="clay-pill clay-pressable min-h-9">
+          <Icon name="close" size={16} />
+        </button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <CalendarView trip={trip} />
+      </div>
+    </div>
+  </div>
+);
+
+const Centered = ({ children }) => (
+  <div className="grid h-full place-items-center text-[length:var(--type-small)] text-[var(--c-ink-dim)]">{children}</div>
 );
 
 const Message = ({ children }) => (
-  <main className="grid min-h-screen place-items-center bg-[var(--c-bg)] p-6 text-[length:var(--type-body)] text-[var(--c-ink-muted)]">
+  <main className="grid min-h-screen place-items-center bg-[var(--clay-surface)] p-6 text-[length:var(--type-body)] text-[var(--c-ink-muted)]">
     {children}
   </main>
 );

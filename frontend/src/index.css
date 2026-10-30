@@ -444,3 +444,118 @@ p {
   .node-pending { animation: none; opacity: 0.7; }
   .ui-card-interactive:hover, .ui-btn:hover, .ui-btn:active { transform: none; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Clay
+ *
+ * Two shadows pulling opposite ways over a matte surface: light up-left,
+ * dark down-right. Pressed flips both inside, which is the whole trick —
+ * the surface looks pushed in rather than merely darker.
+ * ------------------------------------------------------------------ */
+
+.clay {
+  background: var(--clay-surface-raised);
+  border-radius: var(--clay-radius-card);
+  box-shadow: var(--clay-shadow-raised);
+  border: none;
+}
+
+/* A quieter clay for things nested inside a clay panel, so stacked surfaces
+   don't compound into a lumpy mess. */
+.clay-soft {
+  background: var(--clay-surface);
+  border-radius: var(--clay-radius-inner);
+  box-shadow: var(--clay-shadow-soft);
+}
+
+/* Carved in rather than pushed out: track grooves, wells, selected tabs. */
+.clay-sunken {
+  background: var(--clay-surface-sunken);
+  border-radius: var(--clay-radius-inner);
+  box-shadow: var(--clay-shadow-pressed);
+}
+
+.clay-pressable {
+  transition: box-shadow var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+}
+.clay-pressable:hover {
+  transform: translateY(-1px);
+}
+.clay-pressable:active,
+.clay-pressable[aria-pressed='true'],
+.clay-pressable[data-active='true'] {
+  background: var(--clay-surface-sunken);
+  box-shadow: var(--clay-shadow-pressed);
+  transform: translateY(0);
+}
+
+.clay-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--clay-radius-pill);
+  background: var(--clay-surface-raised);
+  box-shadow: var(--clay-shadow-soft);
+  font-size: var(--type-small);
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+/* The itinerary's place image, and what stands in when there isn't one. */
+.clay-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--clay-radius-tile);
+  background: var(--clay-surface-sunken);
+  box-shadow: var(--clay-shadow-pressed);
+}
+.clay-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* One gentle entrance for the plan, not a per-card animation festival. */
+@keyframes clay-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.clay-enter {
+  animation: clay-rise 520ms var(--motion-ease) backwards;
+  animation-delay: var(--clay-delay, 0ms);
+}
+
+/* Leaflet's own chrome, in clay. */
+.clay-map .leaflet-container {
+  background: var(--clay-surface-sunken);
+  font-family: var(--type-font-family);
+}
+.clay-map .leaflet-control-zoom a,
+.clay-map .leaflet-popup-content-wrapper,
+.clay-map .leaflet-tooltip {
+  background: var(--clay-surface-raised);
+  color: var(--c-ink);
+  border: none;
+  border-radius: var(--clay-radius-inner);
+  box-shadow: var(--clay-shadow-soft);
+}
+.clay-map .leaflet-tooltip::before { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .clay-enter { animation-duration: 1ms; animation-delay: 0ms; }
+  .clay-pressable:hover { transform: none; }
+}
+
+/* A column that still scrolls, without the bar cutting down its edge. Wheel,
+   touch, keyboard and the rail itself all keep working. */
+.scroll-quiet {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-quiet::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

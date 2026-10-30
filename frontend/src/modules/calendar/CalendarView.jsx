@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { BedDouble, CalendarPlus, Camera, Coffee, ExternalLink, FileDown, Star, Train, Utensils } from 'lucide-react';
 import { NODE_COLORS } from '../../constants';
 import { mapsUrl } from '../../shared/maps';
+import { track } from '../../shared/analytics';
 import { exportIcs, exportPdf } from './exporters';
 
 const money = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
@@ -34,6 +35,7 @@ export default function CalendarView({ trip }) {
     setError(null);
     try {
       await fn();
+      track('trip exported', { format: kind, days: plan.days.length });
     } catch (e) {
       setError(`Could not export: ${e.message}`);
     } finally {
@@ -129,6 +131,7 @@ export default function CalendarView({ trip }) {
                     color={NODE_COLORS.stay}
                     title={stay.name}
                     meta={`${money(stay.pricePerNight)}/night${stay.priceType === 'estimate' ? ' est' : ''}`}
+                    metaTitle={stay.priceBasis}
                     href={mapsUrl({ name: stay.name, placeId: stay.placeId, destination: stay.destination })}
                   />
                 )}
@@ -184,7 +187,7 @@ const ExportButton = ({ onClick, busy, Icon, label, hint }) => (
 );
 
 /** A row is a link when the place can be found on a map, plain text otherwise. */
-function Row({ Icon, color, title, meta, time, href }) {
+function Row({ Icon, color, title, meta, metaTitle = null, time, href }) {
   const body = (
     <>
       {time ? (
@@ -200,7 +203,11 @@ function Row({ Icon, color, title, meta, time, href }) {
           <span className="break-words">{title}</span>
           {href && <ExternalLink size={11} className="shrink-0 text-[var(--c-ink-muted)]" />}
         </p>
-        {meta && <p className="text-[length:var(--type-micro)] text-[var(--c-ink-muted)]">{meta}</p>}
+        {meta && (
+          <p className="text-[length:var(--type-micro)] text-[var(--c-ink-muted)]" title={metaTitle ?? undefined}>
+            {meta}
+          </p>
+        )}
       </div>
     </>
   );
