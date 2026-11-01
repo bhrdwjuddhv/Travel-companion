@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&family=Caveat:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap');
 @import "tailwindcss";
 
 /* shared/theme.js resolves light/dark/system once and stamps both the class and
@@ -558,4 +558,205 @@ p {
 .scroll-quiet::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * The landing page: printed matter
+ *
+ * One palette rebind. Every ui-* recipe already reads these tokens, so the
+ * cards, buttons and pills turn into paper and ink without being touched.
+ * ------------------------------------------------------------------ */
+.poster {
+  --c-bg: var(--poster-paper);
+  --c-surface: var(--poster-paper-deep);
+  --c-ink: var(--poster-ink);
+  --c-ink-muted: var(--poster-ink-soft);
+  --c-ink-dim: var(--poster-ink-soft);
+  --c-border: var(--poster-rule);
+  --c-border-strong: var(--poster-ink-soft);
+  --c-glass: rgba(255, 255, 255, 0.58);
+  --c-glass-highlight: rgba(255, 255, 255, 0.9);
+  --c-accent: var(--poster-accent);
+  --c-accent-ink: #fff;
+  --c-shadow-raised: var(--poster-card-shadow);
+  --c-on-media: #fff;
+  --c-on-media-muted: rgba(255, 255, 255, 0.76);
+  background: var(--c-bg);
+  color: var(--c-ink);
+}
+
+/* The eyebrow is a stamped pill here, not loose small caps. */
+.poster-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: var(--type-micro);
+  font-weight: 500;
+  letter-spacing: var(--type-label-tracking);
+  text-transform: uppercase;
+  color: var(--c-ink-muted);
+}
+
+/* The second word of a section title, in the accent hand. */
+.poster-script {
+  font-family: var(--type-script-family);
+  font-weight: 600;
+  font-size: 1.18em;
+  line-height: 0.9;
+  letter-spacing: 0;
+  color: var(--c-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * The story shelf
+ *
+ * Shapes only. Every number comes from the component, which derives all of
+ * them from one measured height.
+ * ------------------------------------------------------------------ */
+
+.shelf-stage {
+  position: relative;
+  perspective: var(--shelf-perspective);
+  perspective-origin: 50% 50%;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.shelf-stage:active {
+  cursor: grabbing;
+}
+.shelf-stage:focus-visible {
+  outline: none;
+}
+
+/* A zero-size origin at the centre of the stage. Every book hangs off it. */
+.shelf-rail {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-style: preserve-3d;
+}
+
+/* The book: no size of its own, just two faces in space. */
+.shelf-book {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+  border: 0;
+  padding: 0;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Light falling across a turning object: each face carries its own wash,
+   and the component sets how dark it is. */
+.shelf-face {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 2px;
+  backface-visibility: hidden;
+}
+.shelf-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: var(--shade, 0);
+  pointer-events: none;
+}
+
+/* The spine, drawn rather than photographed: a cloth board, two foil rules,
+   the title running up it and the shelf mark at the foot. */
+.shelf-spine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  box-shadow: inset -3px 0 6px -3px rgba(0, 0, 0, 0.5), inset 2px 0 3px -2px rgba(255, 255, 255, 0.35);
+}
+.shelf-spine-rule {
+  width: 62%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.45);
+  flex: none;
+}
+.shelf-spine-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--type-display-family);
+  font-size: clamp(9px, 1.05vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.94);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 68%;
+}
+.shelf-spine-foot {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.62);
+  flex: none;
+}
+
+.shelf-cover {
+  box-shadow: 0 30px 60px -28px rgba(20, 16, 10, 0.55);
+}
+
+/* The caption swaps by sliding under a mask, never by fading. */
+.shelf-caption {
+  position: relative;
+  overflow: hidden;
+}
+.shelf-caption > * {
+  animation: shelf-caption-in var(--motion-base) var(--motion-ease) both;
+}
+@keyframes shelf-caption-in {
+  from { transform: translateY(var(--caption-from, 105%)); }
+  to   { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-caption > * { animation: none; }
+}
+
+/* The hero bar: solid paper on the illustration, so it rebinds the ink that
+   the surrounding `on-media` turned white. */
+.poster-bar {
+  --c-ink: var(--poster-ink);
+  --c-ink-muted: var(--poster-ink-soft);
+  --c-ink-dim: var(--poster-ink-soft);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 22px 50px -24px rgba(10, 40, 66, 0.55);
+  color: var(--c-ink);
+}
+
+/* ------------------------------------------------------------------ *
+ * The destination card
+ *
+ * Sheared, so a row of them zigzags. The shear and the hover lift share one
+ * transform — a Tailwind translate class would replace the shear outright —
+ * and the label turns itself back upright.
+ * ------------------------------------------------------------------ */
+.dest-card {
+  transform: skewX(var(--skew)) translateY(0);
+  transition: transform var(--motion-slow) var(--motion-ease);
+}
+.dest-card:hover {
+  transform: skewX(var(--skew)) translateY(-6px);
+}
+.dest-upright {
+  transform: skewX(calc(-1 * var(--skew)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dest-card, .dest-card:hover { transform: skewX(var(--skew)); }
 }

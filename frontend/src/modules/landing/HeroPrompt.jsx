@@ -45,10 +45,10 @@ export default function HeroPrompt({ value, onChange, onExtracted }) {
   };
 
   return (
-    <div className="w-full">
+    <div className="on-media w-full">
       <form
         onSubmit={submit}
-        className="liquid-glass flex w-full flex-col gap-2 rounded-[var(--r-xl)] p-2 sm:flex-row sm:items-center sm:rounded-[var(--r-pill)]"
+        className="poster-bar flex w-full flex-col gap-2 rounded-[var(--r-xl)] p-2 sm:flex-row sm:items-center sm:rounded-[var(--r-pill)]"
       >
         <label className="flex min-w-0 flex-1 items-center gap-3 px-4">
           <MapPin size={16} className="shrink-0 text-[var(--c-ink-dim)]" aria-hidden="true" />

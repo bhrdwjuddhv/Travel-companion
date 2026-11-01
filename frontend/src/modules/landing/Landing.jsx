@@ -1,17 +1,13 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
-import VideoBackdrop from './VideoBackdrop';
+import { ArrowRight, Lock } from 'lucide-react';
 import HeroPrompt from './HeroPrompt';
-import DestinationBento from './DestinationBento';
-import { Section, SectionHeading, FeatureTile, ModeTile, StepTile, PillButton } from './cards.jsx';
+import DestinationGrid from './DestinationGrid';
+import StoryShelf from './StoryShelf';
+import { Section, SectionHeading, PillButton } from './cards.jsx';
 import Reveal from '../../shared/Reveal';
 import { track } from '../../shared/analytics';
-import { BACKDROP, FEATURES, LANDING, PLANNING_MODES, SECTION_INTRO } from '../../constants';
-
-// Nothing boxes the hero in: the words sit on the footage and a shadow does
-// the legibility work.
-const onVideo = { textShadow: BACKDROP.heroTextShadow };
+import { FEATURES, HERO, LANDING, STORIES } from '../../constants';
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -44,131 +40,82 @@ export default function Landing() {
   };
 
   return (
-    <div id="top" className="relative min-h-screen overflow-x-clip bg-[var(--c-bg)] text-[var(--c-ink)]">
-      <VideoBackdrop />
-
-      <header className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-4 px-6 py-6 md:px-10 md:py-8">
+    <div id="top" className="poster relative min-h-screen overflow-x-clip">
+      <header className="absolute inset-x-0 top-0 z-50 flex items-center justify-between gap-4 px-6 py-6 text-white md:px-10 md:py-8">
         <a href="#top" className="text-[17px] font-semibold tracking-tight">
           {LANDING.productName}
           <sup className="text-[10px] opacity-70">{LANDING.trademark}</sup>
         </a>
-        <PillButton onStart={(o) => go(o)} variant="ghost" className="ui-btn-sm">
+        <PillButton onStart={(o) => go(o)} variant="ghost" className="ui-btn-sm border-white/40 text-white">
           {LANDING.footer.cta}
         </PillButton>
       </header>
 
-      <div className="relative z-10">
-        {/* Hero */}
-        <section className="relative flex min-h-screen flex-col items-center justify-center px-6 py-28 text-center">
-          <div ref={heroRef} className="ui-measure flex flex-col items-center">
-            <Reveal as="h1" className="ui-display max-w-4xl" style={onVideo}>
-              <span className="block">{LANDING.hero.headline[0]}</span>
-              <span className="block text-[var(--c-ink-dim)]">{LANDING.hero.headline[1]}</span>
-            </Reveal>
+      {/* 1 · Hero. The illustration is the whole section; the bar floats on it. */}
+      <section
+        className="relative flex flex-col items-center justify-center overflow-hidden px-6 pb-20 pt-36 text-center"
+        style={{ minHeight: HERO.minHeight }}
+      >
+        <img
+          src={HERO.image}
+          alt=""
+          aria-hidden="true"
+          // The largest thing on the first paint; it should not queue behind
+          // the destination photos below the fold.
+          fetchPriority="high"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <span className="absolute inset-0" style={{ background: HERO.overlay }} aria-hidden="true" />
 
-            <Reveal
-              delay={1}
-              className="mt-6 max-w-[620px] text-[length:var(--type-body)] leading-relaxed"
-              style={onVideo}
-            >
-              {LANDING.hero.paragraph.lead}
-              <span className="text-[var(--c-ink-dim)]">{LANDING.hero.paragraph.muted}</span>
-            </Reveal>
-
-            <Reveal delay={2} className="mt-10 w-full max-w-3xl">
-              <HeroPrompt value={promptText} onChange={setPromptText} onExtracted={onExtracted} />
-            </Reveal>
-
-            <Reveal delay={3} className="mt-8 flex items-center gap-2 text-[var(--c-ink-dim)]" style={onVideo}>
-              <Lock size={13} aria-hidden="true" />
-              <span className="ui-eyebrow">{LANDING.hero.assurance}</span>
-            </Reveal>
-          </div>
-        </section>
-
-        {/* Destinations */}
-        <Section>
-          <SectionHeading {...LANDING.destinations} className="mb-12" />
-          <DestinationBento onPick={pickDestination} />
-        </Section>
-
-        {/* What you get */}
-        <Section>
-          <SectionHeading eyebrow={LANDING.features.eyebrow} title={LANDING.features.title} className="mb-12" />
-          <div className="ui-bento">
-            {LANDING.features.items.map((f, i) => (
-              <FeatureTile key={f.title} {...f} index={i} />
-            ))}
-          </div>
-        </Section>
-
-        {/* Three planning modes */}
-        <Section>
-          <SectionHeading
-            eyebrow={LANDING.modes.eyebrow}
-            title={LANDING.modes.title}
-            subtitle={LANDING.modes.subtitle}
-            className="mb-12"
-          />
-          <div className="ui-bento">
-            {PLANNING_MODES.map((m, i) => (
-              <ModeTile key={m.id} mode={m} index={i} />
-            ))}
-          </div>
-        </Section>
-
-        {/* How it works */}
-        <Section>
-          <SectionHeading
-            eyebrow={LANDING.howItWorks.eyebrow}
-            title={LANDING.howItWorks.title}
-            className="mb-12"
-          />
-          <div className="ui-bento">
-            {LANDING.howItWorks.steps.map((s, i) => (
-              <StepTile key={s.title} index={i} {...s} />
-            ))}
-          </div>
-        </Section>
-
-        {/* Footer CTA */}
-        <section className="relative z-10 px-6 py-16 md:px-10">
-          <Reveal className="ui-measure">
-            <div
-              className="ui-card on-media"
-              style={{
-                background: SECTION_INTRO.tint,
-                backdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
-                WebkitBackdropFilter: `blur(${SECTION_INTRO.blurPx}px)`,
-              }}
-            >
-              <div className="bg-gradient-to-b from-white/[0.07] to-transparent px-8 py-16 text-center md:px-16 md:py-24">
-                <h2 className="mx-auto max-w-3xl" style={{ fontSize: 'var(--type-h1)' }}>
-                  {LANDING.footer.title}
-                </h2>
-                <p className="mx-auto mt-5 max-w-[540px] text-[length:var(--type-body)] leading-relaxed text-[var(--c-ink-dim)]">
-                  {LANDING.footer.subtitle}
-                </p>
-                <div className="mt-9 flex justify-center">
-                  <PillButton onStart={(o) => go(o)}>{LANDING.footer.cta}</PillButton>
-                </div>
-              </div>
-            </div>
+        <div ref={heroRef} className="ui-measure relative flex flex-col items-center">
+          <Reveal as="h1" className="ui-display max-w-4xl text-white drop-shadow-[0_2px_18px_rgba(10,40,66,0.45)]">
+            <span className="block">{LANDING.hero.headline[0]}</span>
+            <span className="block opacity-80">{LANDING.hero.headline[1]}</span>
           </Reveal>
-        </section>
 
-        <footer className="on-media relative z-10 px-6 pb-12 md:px-10">
-          <div className="ui-measure flex flex-wrap items-center justify-between gap-4 border-t border-[var(--c-border)] pt-8">
-            <span className="text-[17px] font-semibold tracking-tight">
-              {LANDING.productName}
-              <sup className="text-[10px] opacity-70">{LANDING.trademark}</sup>
-            </span>
-            <p className="max-w-[420px] text-[length:var(--type-small)] text-[var(--c-ink-dim)]">
-              {LANDING.footer.note}
-            </p>
-          </div>
-        </footer>
-      </div>
+          <Reveal delay={2} className="mt-10 w-full max-w-3xl">
+            <HeroPrompt value={promptText} onChange={setPromptText} onExtracted={onExtracted} />
+          </Reveal>
+
+          <Reveal delay={3} className="on-media mt-8 flex items-center gap-2 opacity-85">
+            <Lock size={13} aria-hidden="true" />
+            <span className="ui-eyebrow">{LANDING.hero.assurance}</span>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* 2 · Destinations */}
+      <Section>
+        <SectionHeading
+          eyebrow={LANDING.destinations.eyebrow}
+          title={LANDING.destinations.title}
+          subtitle={LANDING.destinations.subtitle}
+          className="mb-12"
+        />
+        <DestinationGrid onPick={pickDestination} />
+        <div className="mt-12 flex justify-center">
+          <PillButton onStart={(o) => go(o)}>
+            {LANDING.destinations.cta}
+            <ArrowRight size={15} />
+          </PillButton>
+        </div>
+      </Section>
+
+      {/* 3 · Stories from people who took the trip */}
+      <Section className="overflow-hidden">
+        <SectionHeading eyebrow={STORIES.eyebrow} title={STORIES.title} subtitle={STORIES.subtitle} className="mb-14" />
+        <StoryShelf />
+      </Section>
+
+      <footer className="px-6 pb-12 md:px-10">
+        <div className="ui-measure flex flex-wrap items-center justify-between gap-4 border-t border-[var(--c-border)] pt-8">
+          <span className="text-[17px] font-semibold tracking-tight">
+            {LANDING.productName}
+            <sup className="text-[10px] opacity-70">{LANDING.trademark}</sup>
+          </span>
+          <p className="max-w-[420px] text-[length:var(--type-small)] text-[var(--c-ink-dim)]">{LANDING.footer.note}</p>
+        </div>
+      </footer>
 
       {wipeFrom && (
         <div className="pointer-events-none fixed inset-0 z-50" style={{ '--wipe-ms': `${FEATURES.transitionMs}ms` }}>

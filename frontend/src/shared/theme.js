@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CLAY, COLOR_MODE, COLOR_MODE_STORAGE, MOTION, PALETTE, RADIUS, SPACE, TYPE } from '../constants';
+import { CLAY, COLOR_MODE, COLOR_MODE_STORAGE, MOTION, PALETTE, POSTER, RADIUS, SPACE, TYPE } from '../constants';
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
@@ -19,6 +19,7 @@ export function applyThemeVars(mode, root = document.documentElement) {
   publish(root, 'c', PALETTE[mode] ?? PALETTE.dark);
   publish(root, 'clay', CLAY[mode] ?? CLAY.dark);
   publish(root, 'clay-radius', CLAY.radius);
+  publish(root, 'poster', POSTER);
   publish(root, 'r', RADIUS);
   publish(root, 'sp', SPACE);
   publish(root, 'type', TYPE);

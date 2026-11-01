@@ -124,6 +124,8 @@ export const PALETTE = {
  * from size and tight tracking, never from bold. Barlow runs the body text.
  */
 export const TYPE = {
+  scriptFamily: "'Caveat', 'Barlow', cursive",
+  serifFamily: "'Newsreader', Georgia, serif",
   fontFamily: "'Barlow', ui-sans-serif, system-ui, -apple-system, sans-serif",
   displayFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
   display: 'clamp(40px, 5.4vw, 72px)',
@@ -237,6 +239,119 @@ export const FUN_MAP = {
 export const PLACE_PHOTO = {
   path: '/api/places/photo',
   width: 480,
+};
+
+/* ------------------------------------------------------------------ *
+ * Landing
+ *
+ * A printed travel-poster world: warm paper, deep ink blue, a vermilion
+ * accent. It is its own visual register, separate from the clay of the trip
+ * page, because this page sells the idea and that one is a tool.
+ * ------------------------------------------------------------------ */
+export const POSTER = {
+  paper: '#F7F1E4',
+  paperDeep: '#EFE6D3',
+  ink: '#123C5E',
+  inkSoft: '#3C6484',
+  accent: '#E2622F',
+  rule: 'rgba(18, 60, 94, 0.18)',
+  cardShadow: '0 18px 36px -22px rgba(18, 60, 94, 0.55)',
+};
+
+/**
+ * The destination card: a sheared rectangle, so a row of them zigzags rather
+ * than sitting in a plain grid. The picture shears with the card — only the
+ * label is turned back upright.
+ */
+export const DEST_CARD = {
+  skewDeg: -7,
+  aspect: '16 / 9',
+  // A navy wash over the left, where the name sits, fading out over the picture.
+  scrim: 'linear-gradient(101deg, rgba(12,42,70,0.94) 0%, rgba(12,42,70,0.78) 32%, rgba(12,42,70,0.18) 58%, rgba(12,42,70,0) 74%)',
+};
+
+export const HERO = {
+  image: '/hero-section.png',
+  // The illustration is the hero; the bar floats over its calm middle band.
+  overlay: 'linear-gradient(180deg, rgba(10,40,66,0.18) 0%, rgba(10,40,66,0.05) 45%, rgba(10,40,66,0.28) 100%)',
+  // dvh, not vh: on a phone the browser chrome must not leave a strip of paper
+  // under the illustration.
+  minHeight: '100dvh',
+};
+
+/**
+ * The story shelf.
+ *
+ * Every book is a real cuboid with two faces: a narrow spine that stands in
+ * the row, and the wide cover on its right-hand side. Turning the box a
+ * quarter turn brings the cover round to face you, which is the whole trick —
+ * nothing fades, nothing is swapped out.
+ *
+ * All of the geometry is a ratio of one number, the shelf height, so the
+ * composition is identical at any size.
+ */
+export const SHELF = {
+  // Shelf height: the smaller of a share of the viewport's height and width.
+  heightVh: 0.46,
+  heightVw: 0.31,
+  mobileAtPx: 768,
+  mobileHeightVw: 0.6,
+  mobileHeightVh: 0.4,
+
+  spineRatio: 142 / 840,   // spine width, as a share of height
+  coverRatio: 474 / 900,   // cover width, which is also the box's depth
+  gapRatio: 0.03,          // the air between two spines
+
+  perspectivePx: 2200,
+  towardsViewer: 0.2,      // how far the opened book is pulled forward, × height
+  riseRatio: 0.025,        // how far it lifts out of the row
+  hoverRiseRatio: 0.045,   // how far a spine lifts when pointed at
+  leanDeg: -4.5,           // the opened book leans, as a held book does
+  tiltDeg: 7,              // and leans further towards the pointer
+
+  spring: 5.2,             // per second; the shelf chases the chosen book
+  dragSpring: 18,          // stiffer under a finger, so it tracks the drag
+  settleAt: 1e-4,
+  copies: 7,               // the row repeated, so wrapping happens off-screen
+                           // (six stories is a short row: it takes this many to
+                           // fill a wide screen and still wrap out of sight)
+  cullAtCovers: 1.5,       // how far past the edge a book stops being drawn
+  dragThresholdPx: 5,
+  wheelSettleMs: 160,
+
+  autoplayMs: 4600,        // it browses itself until you touch it
+  resumeAfterMs: 9000,
+  captionMs: 650,
+
+  shadeSpine: 0.55,        // the spine darkens as it turns away
+  shadeCover: 0.5,         // and the cover lights up as it comes round
+};
+
+export const STORIES = {
+  eyebrow: 'From the road',
+  title: ['Trips people', 'actually took'],
+  subtitle: 'Plans that left the screen. Pick a book off the shelf, then open it.',
+  hint: 'Drag · ← → · click to open',
+  items: [
+    { id: 'jaipur-forts', title: 'Nine gates, four days', author: 'Ananya R.', place: 'Jaipur',
+      meta: '4 days · Nov 2025', cover: '/destinations/jaipur.jpg', spine: '#B3472D',
+      excerpt: 'We planned it as a fort crawl and it became a food crawl. Amber at dawn is the only hour worth the climb.' },
+    { id: 'kerala-slow', title: 'Slow water', author: 'Meera & Joel', place: 'Alleppey',
+      meta: '6 days · Dec 2025', cover: '/destinations/kerala.webp', spine: '#1F5B4E',
+      excerpt: 'One houseboat, no itinerary after noon. The plan held the mornings and let the afternoons go.' },
+    { id: 'ladakh-passes', title: 'Above the tree line', author: 'Dev S.', place: 'Leh',
+      meta: '8 days · Sep 2025', cover: '/destinations/leh-ladakh.webp', spine: '#1E3F6B',
+      excerpt: 'Two days doing nothing in Leh before anything else. Acclimatising is the itinerary.' },
+    { id: 'varanasi-ghats', title: 'Five in the morning', author: 'Ishaan K.', place: 'Varanasi',
+      meta: '3 days · Jan 2026', cover: '/destinations/varanasi.webp', spine: '#8A5A17',
+      excerpt: 'The ghats at first light, then sleep until four. We rebuilt the whole day around the river.' },
+    { id: 'goa-south', title: 'The quiet end', author: 'Farah N.', place: 'South Goa',
+      meta: '4 days · Feb 2026', cover: '/destinations/goa.webp', spine: '#2E6F7D',
+      excerpt: 'North for one night to get it out of our system, then south and nothing but the shack at Agonda.' },
+    { id: 'rishikesh-river', title: 'Rapids, then silence', author: 'Kabir M.', place: 'Rishikesh',
+      meta: '4 days · Mar 2026', cover: '/destinations/rishikesh.webp', spine: '#5A4374',
+      excerpt: 'Rafting on day two, a week of calm packed into day three. The river does both.' },
+  ],
 };
 
 /** Default theme; the user's choice is remembered in localStorage. */
@@ -473,22 +588,27 @@ export const LANDING = {
    * is a faster keyboard too — it plans nothing on its own.
    */
   destinations: {
-    eyebrow: 'POPULAR WITH PLANNERS',
-    title: 'Where does India want to go next?',
-    subtitle: 'Tap one to drop it into the bar above, then edit it like anything you typed yourself.',
+    eyebrow: 'Places to Explore',
+    title: ['Discover Incredible', 'Destinations'],
+    subtitle: 'Handpicked places, iconic experiences, and unforgettable journeys across India.',
+    cta: 'Explore All Destinations',
+    /** Clicking a tile puts its prompt in the hero bar and scrolls back up. */
     items: [
-      { name: 'Jaipur', region: 'Rajasthan', tag: 'Forts', image: '/destinations/jaipur.jpg', size: 'lg',
+      { name: 'Jaipur', region: 'Rajasthan', image: '/destinations/jaipur.jpg',
         prompt: '4 days in Jaipur from Delhi, 2 of us, forts and street food' },
-      { name: 'Goa', region: 'West coast', tag: 'Beaches', image: '/destinations/goa.webp', size: 'tall',
+      { name: 'Goa', region: 'Goa', image: '/destinations/goa.webp',
         prompt: '4 days in Goa from Mumbai, beaches and seafood, comfortable' },
-      { name: 'Kerala', region: 'Backwaters', tag: 'Slow', image: '/destinations/kerala.webp', size: 'tall',
+      { name: 'Kerala', region: 'Kerala', image: '/destinations/kerala.webp',
         prompt: '6 days in Kerala from Bangalore, backwaters and food, no night travel' },
-      { name: 'Leh-Ladakh', region: 'Union territory', tag: 'Altitude', image: '/destinations/leh-ladakh.webp', size: 'wide',
+      { name: 'Ladakh', region: 'Jammu & Kashmir', image: '/destinations/leh-ladakh.webp',
         prompt: '8 days in Leh from Delhi, monasteries and high passes, premium' },
-      { name: 'Varanasi', region: 'Uttar Pradesh', tag: 'Ghats', image: '/destinations/varanasi.webp', size: 'wide',
+      { name: 'Varanasi', region: 'Uttar Pradesh', image: '/destinations/varanasi.webp',
         prompt: '3 days in Varanasi from Delhi, ghats and temples, budget-friendly' },
+      { name: 'Rishikesh', region: 'Uttarakhand', image: '/destinations/rishikesh.webp',
+        prompt: '4 days in Rishikesh from Delhi, river and quiet, budget-friendly' },
     ],
   },
+
   features: {
     eyebrow: 'WHAT YOU GET',
     title: 'Everything the plan needs, in one place',
