@@ -7,61 +7,65 @@
  * then a one-line change here, and `grep "TODO.*Icon" icons.js` lists
  * everything still standing in.
  */
-import { createElement } from 'react';
 import { AirplaneIcon } from 'mochi-icons/AirplaneIcon';
 import { AlarmClockIcon } from 'mochi-icons/AlarmClockIcon';
+import { AutoRickshawIcon } from 'mochi-icons/AutoRickshawIcon';
 import { AwardBadgeIcon } from 'mochi-icons/AwardBadgeIcon';
 import { BalloonIcon } from 'mochi-icons/BalloonIcon';
 import { BankNoteIcon } from 'mochi-icons/BankNoteIcon';
+import { BeachIcon } from 'mochi-icons/BeachIcon';
 import { BeerMugIcon } from 'mochi-icons/BeerMugIcon';
 import { BellIcon } from 'mochi-icons/BellIcon';
 import { BookmarkIcon } from 'mochi-icons/BookmarkIcon';
-import { BriefcaseIcon } from 'mochi-icons/BriefcaseIcon';
+import { BusIcon } from 'mochi-icons/BusIcon';
 import { CactusIcon } from 'mochi-icons/CactusIcon';
+import { CalendarIcon } from 'mochi-icons/CalendarIcon';
 import { CameraIcon } from 'mochi-icons/CameraIcon';
 import { CarIcon } from 'mochi-icons/CarIcon';
+import { ChatBubbleIcon } from 'mochi-icons/ChatBubbleIcon';
 import { CheckIcon } from 'mochi-icons/CheckIcon';
+import { ChestIcon } from 'mochi-icons/ChestIcon';
 import { CloudMoonIcon } from 'mochi-icons/CloudMoonIcon';
+import { CoffeeCupIcon } from 'mochi-icons/CoffeeCupIcon';
+import { CompassIcon } from 'mochi-icons/CompassIcon';
 import { ConfettiIcon } from 'mochi-icons/ConfettiIcon';
 import { CreditCardIcon } from 'mochi-icons/CreditCardIcon';
 import { DiamondIcon } from 'mochi-icons/DiamondIcon';
 import { DiscoBallIcon } from 'mochi-icons/DiscoBallIcon';
+import { DownloadIcon } from 'mochi-icons/DownloadIcon';
 import { EditIcon } from 'mochi-icons/EditIcon';
-import { EnvelopeIcon } from 'mochi-icons/EnvelopeIcon';
+import { ExportIcon } from 'mochi-icons/ExportIcon';
 import { FireIcon } from 'mochi-icons/FireIcon';
 import { GreenFlagIcon } from 'mochi-icons/GreenFlagIcon';
 import { HotAirBalloonIcon } from 'mochi-icons/HotAirBalloonIcon';
+import { HotelIcon } from 'mochi-icons/HotelIcon';
 import { InfoCircleIcon } from 'mochi-icons/InfoCircleIcon';
 import { KiteIcon } from 'mochi-icons/KiteIcon';
 import { LocationIcon } from 'mochi-icons/LocationIcon';
 import { MapIcon } from 'mochi-icons/MapIcon';
+import { MonumentIcon } from 'mochi-icons/MonumentIcon';
+import { MountainIcon } from 'mochi-icons/MountainIcon';
+import { PlusIcon } from 'mochi-icons/PlusIcon';
 import { RainbowIcon } from 'mochi-icons/RainbowIcon';
 import { RamenBowlIcon } from 'mochi-icons/RamenBowlIcon';
-import { ReceiptIcon } from 'mochi-icons/ReceiptIcon';
 import { RedFlagIcon } from 'mochi-icons/RedFlagIcon';
 import { RocketIcon } from 'mochi-icons/RocketIcon';
+import { RupeeIcon } from 'mochi-icons/RupeeIcon';
 import { SearchIcon } from 'mochi-icons/SearchIcon';
 import { SettingsGrayIcon } from 'mochi-icons/SettingsGrayIcon';
 import { ShoppingCartIcon } from 'mochi-icons/ShoppingCartIcon';
+import { SliderIcon } from 'mochi-icons/SliderIcon';
+import { StarIcon } from 'mochi-icons/StarIcon';
+import { SuitcaseIcon } from 'mochi-icons/SuitcaseIcon';
 import { SunIcon } from 'mochi-icons/SunIcon';
+import { TicketIcon } from 'mochi-icons/TicketIcon';
+import { TrainIcon } from 'mochi-icons/TrainIcon';
 import { UserIcon } from 'mochi-icons/UserIcon';
+import { WalkingIcon } from 'mochi-icons/WalkingIcon';
+import { WalletIcon } from 'mochi-icons/WalletIcon';
 import { WineGlassIcon } from 'mochi-icons/WineGlassIcon';
 import { WorldIcon } from 'mochi-icons/WorldIcon';
 import { XIcon } from 'mochi-icons/XIcon';
-
-/**
- * A plus, drawn here because the library has none and the usual stand-in would
- * be worse than nothing: CrossIcon is a diagonal X, and a bookmark on an "add"
- * button says the wrong thing entirely. Still counted as a bait, so it swaps
- * out the day a real sticker lands.
- */
-const PlusGlyph = ({ size = 18, color = 'currentColor', strokeWidth = 2.2, ...rest }) =>
-  createElement(
-    'svg',
-    { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth, strokeLinecap: 'round', ...rest },
-    createElement('path', { key: 'v', d: 'M12 5.5v13' }),
-    createElement('path', { key: 'h', d: 'M5.5 12h13' })
-  );
 
 /** The stand-in for a sticker the library doesn't have yet. */
 export const BAIT = BookmarkIcon;
@@ -91,16 +95,16 @@ export const ICONS = {
   /* ---- transport ---- */
   flight: real(AirplaneIcon),
   car: real(CarIcon),
-  train: bait(), // TODO: TrainIcon
-  bus: bait(), // TODO: BusIcon
-  auto: bait(), // TODO: AutoRickshawIcon
-  taxi: bait(CarIcon), // TODO: TaxiIcon
-  walk: bait(), // TODO: WalkingIcon
+  train: real(TrainIcon),
+  bus: real(BusIcon),
+  auto: real(AutoRickshawIcon),
+  taxi: bait(CarIcon), // TODO: TaxiIcon — the library still has no cab
+  walk: real(WalkingIcon),
 
   /* ---- staying and timing ---- */
-  hotel: bait(), // TODO: HotelIcon / BedIcon
-  luggage: bait(BriefcaseIcon), // TODO: SuitcaseIcon
-  calendar: bait(), // TODO: CalendarIcon
+  hotel: real(HotelIcon),
+  luggage: real(SuitcaseIcon),
+  calendar: real(CalendarIcon),
   time: real(AlarmClockIcon),
   dayArrival: real(SunIcon),
   nightArrival: real(CloudMoonIcon),
@@ -108,18 +112,18 @@ export const ICONS = {
   /* ---- money ---- */
   money: real(BankNoteIcon),
   creditCard: real(CreditCardIcon),
-  rupee: bait(BankNoteIcon), // TODO: RupeeIcon
-  wallet: bait(BankNoteIcon), // TODO: WalletIcon
-  ticket: bait(ReceiptIcon), // TODO: TicketIcon
-  priceSliders: bait(SettingsGrayIcon), // TODO: SlidersIcon
+  rupee: real(RupeeIcon),
+  wallet: real(WalletIcon),
+  ticket: real(TicketIcon),
+  priceSliders: real(SliderIcon),
 
   /* ---- scenery ---- */
-  mountain: bait(), // TODO: MountainIcon
-  beach: bait(), // TODO: BeachIcon
-  landmark: bait(), // TODO: LandmarkIcon
-  cafe: bait(), // TODO: CoffeeCupIcon
-  compass: bait(), // TODO: CompassIcon
-  treasureChest: bait(), // TODO: TreasureChestIcon
+  mountain: real(MountainIcon),
+  beach: real(BeachIcon),
+  landmark: real(MonumentIcon),
+  cafe: real(CoffeeCupIcon),
+  compass: real(CompassIcon),
+  treasureChest: real(ChestIcon),
 
   /* ---- chrome ---- */
   edit: real(EditIcon),
@@ -130,10 +134,11 @@ export const ICONS = {
   traveller: real(UserIcon),
   bookmark: real(BookmarkIcon),
   notify: real(BellIcon),
-  star: bait(AwardBadgeIcon), // TODO: StarIcon
-  chat: bait(EnvelopeIcon), // TODO: ChatBubbleIcon
-  download: bait(), // TODO: DownloadIcon
-  add: bait(PlusGlyph), // TODO: PlusIcon
+  star: real(StarIcon),
+  chat: real(ChatBubbleIcon),
+  download: real(DownloadIcon),
+  export: real(ExportIcon),
+  add: real(PlusIcon),
 
   /* ---- the playful set, for the adventure map ---- */
   funBalloon: real(HotAirBalloonIcon),

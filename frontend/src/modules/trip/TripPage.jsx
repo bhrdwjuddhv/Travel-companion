@@ -108,7 +108,7 @@ export default function TripPage() {
           {busy && <span className="text-[length:var(--type-small)] text-[var(--c-ink-dim)]">updating…</span>}
 
           <button onClick={() => setExporting(true)} className="clay-pill clay-pressable min-h-9">
-            <Icon name="download" size={16} />
+            <Icon name="export" size={16} />
             Export
           </button>
 
